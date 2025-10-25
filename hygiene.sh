@@ -34,18 +34,19 @@ convert_to_utf8() { # Функция для конвертации файла в
     echo "Файл успешно конвертирован: $file"
   fi
 }
-find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" \) -prune -o -type f -exec file -i {} \; | grep -v 'charset=utf-8' | while read -r line; do # Поиск файлов, не являющихся UTF-8, и их конвертация (исключая public, tmp, vendor)
+find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" -o -path "*/+/*" \) -prune -o -type f -exec file -i {} \; | grep -v 'charset=utf-8' | while read -r line; do # Поиск файлов, не являющихся UTF-8, и их конвертация (исключая public, tmp, vendor, +)
   file=$(echo "$line" | cut -d: -f1) # Извлечение имени файла из строки
   convert_to_utf8 "$file" # Преобразование файла в UTF-8
 done
-find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" \) -prune -o -type f -name "*.bak" -delete # Чистка бэкапов (исключая public, tmp, vendor)
+# Чистка бэкапов (исключая public, tmp, vendor, +)
+find "$DIR" \( -path "*/public" -o -path "*/tmp" -o -path "*/vendor" -o -path "*/+" \) -prune -o -type f -name "*.bak" -print0 | xargs -0 -r rm -f
 #
 echo "Все файлы обработаны."
 
 # Удалить все строки подобные `# encoding: utf-8` из файлов *.rb, кроме самой `# encoding: utf-8` 
 #
 # shopt -s nocasematch # Включить режим, в котором сравнение строк будет игнорировать регистр
-find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" \) -prune -o -type f -name "*.rb" -print | while read -r file; do # Рекурсивно найти все файлы .rb в директории и обработать их (исключая public, tmp, vendor)
+find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" -o -path "*/+/*" \) -prune -o -type f -name "*.rb" -print | while read -r file; do # Рекурсивно найти все файлы .rb в директории и обработать их (исключая public, tmp, vendor, +)
   sed -i '1s/^\xEF\xBB\xBF//' "$file" # Убираем BOM из файла (если присутствует)
   frst_line=$(head -n 1 "$file" |             tr -d ' ' | tr '[:upper:]' '[:lower:]') # Получить первую строку файла без пробелов в нижнем регистре
   scnd_line=$(head -n 2 "$file" | tail -n 1 | tr -d ' ' | tr '[:upper:]' '[:lower:]') # Получить вторую строку файла без пробелов в нижнем регистре
@@ -74,7 +75,7 @@ echo "Все файлы *.rb обработаны."
 
 # Проверка и исправление наличия строки `- # coding: utf-8` в начале всех .haml файлов, за исключением файлов, включаемых в другие файлы (_*.haml)
 #
-find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" \) -prune -o -type f -name "*.haml" ! -name "_*.haml" -print | while read -r file; do # Найти все файлы .haml (исключая public, tmp, vendor)
+find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" -o -path "*/+/*" \) -prune -o -type f -name "*.haml" ! -name "_*.haml" -print | while read -r file; do # Найти все файлы .haml (исключая public, tmp, vendor, +)
   sed -i '1s/^\xEF\xBB\xBF//' "$file" # Убираем BOM из файла (если присутствует)
   frst_line=$(head -n 1 "$file" |             tr -d ' ' | tr '[:upper:]' '[:lower:]') # Получить первую строку файла без пробелов в нижнем регистре
   scnd_line=$(head -n 2 "$file" | tail -n 1 | tr -d ' ' | tr '[:upper:]' '[:lower:]') # Получить вторую строку файла без пробелов в нижнем регистре
@@ -119,7 +120,7 @@ check_and_apply_dos2unix() {
 # Применяем dos2unix к .rb и .haml файлам при необходимости
 #
 echo "Проверка line endings в .rb и .haml файлах..."
-find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" \) -prune -o -type f \( -name "*.rb" -o -name "*.haml" \) -print | while read -r file; do
+find "$DIR" -type f \( -path "*/public/*" -o -path "*/tmp/*" -o -path "*/vendor/*" -o -path "*/+/*" \) -prune -o -type f \( -name "*.rb" -o -name "*.haml" \) -print | while read -r file; do
   check_and_apply_dos2unix "$file"
 done
 
