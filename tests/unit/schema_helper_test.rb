@@ -1,3 +1,4 @@
+# encoding: utf-8
 require_relative '../test_setup'
 require 'minitest/autorun'
 require 'json'

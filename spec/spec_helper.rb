@@ -1,3 +1,4 @@
+# encoding: utf-8
 require 'rspec'
 require_relative '../app/helpers/schema_helper'
 

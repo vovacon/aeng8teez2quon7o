@@ -1,3 +1,4 @@
+# encoding: utf-8
 RSpec.describe 'Numeric extensions' do
   context '#clamp' do
     it 'clamps values correctly' do
