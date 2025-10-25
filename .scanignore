@@ -1,0 +1,16 @@
+# Directory exclusions for security scanners
+# Auxiliary directory with utility scripts and test data
++/
+
+# Test files containing mock/example data
+test_*.rb
+test_*.py
+*_test.*
+
+# Temporary files
+*.tmp
+*.bak
+
+# Development utilities
+utils/
+scripts/

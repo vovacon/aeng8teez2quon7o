@@ -1,0 +1,30 @@
+# Gitleaks configuration
+[extend]
+path = "~/.gitleaks.toml"
+
+# Global allowlist
+[[rules.allowlist]]
+description = "Auxiliary directory with test scripts"
+paths = [
+    "\/\+\/.*"
+]
+
+[[rules.allowlist]]
+description = "Test files with mock data"
+files = [
+    "test_.*\.rb$",
+    "test_.*\.py$",
+    ".*_test\.rb$",
+    ".*_test\.py$"
+]
+
+[[rules.allowlist]]
+description = "User agent strings in test files"
+regexes = [
+    "Mozilla\/[0-9\.]+.*Chrome\/[0-9\.]+.*Safari\/[0-9\.]+"
+]
+paths = [
+    "\/\+\/.*",
+    "test_.*",
+    ".*_test\.*"
+]

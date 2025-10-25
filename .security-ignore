@@ -1,0 +1,15 @@
+# Security scanning exclusions
+# Exclude auxiliary directory containing test and utility scripts
++/*
++/
+
+# Test files with mock data should not be scanned
+test_*
+*_test.rb
+*_test.py
+
+# Utility scripts directory
+utils/
+
+# Documentation examples
+docs/examples/
