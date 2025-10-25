@@ -1,29 +1,18 @@
-# Gitleaks configuration for Rozario.Flowers
-title = "Rozario Security Scanning"
+# Simple Gitleaks configuration
+title = "Security Scanning"
 
-# Skip auxiliary directory with test data
 [allowlist]
-paths = [
-    "+/**",
-    "**/.git/**",
-    "**/vendor/**",
-    "**/tmp/**",
-    "**/log/**"
-]
-
+# Skip auxiliary test directory - use exact path match
 files = [
+    "./+/test.rb",
+    "./+/cleanup_html_comments.rb",
+    "./+/db.py",
     "test_*.rb",
-    "*_test.rb",
-    "*.tmp",
-    "*.log",
-    "*.bak"
+    "*_test.rb"
 ]
 
-# Allowlist common false positives
+# Skip common false positive patterns
 regexes = [
-    "Mozilla",
-    "localhost",
-    "127.0.0.1",
-    "example_api_key",
-    "test_token"
+    "test_token",
+    "example_key"
 ]
