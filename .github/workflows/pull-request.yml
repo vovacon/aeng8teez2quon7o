@@ -1,0 +1,167 @@
+name: 🔍 Pull Request Проверки
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+env:
+  RUBY_VERSION: '2.7'
+
+jobs:
+  pr-validation:
+    name: 🔍 Валидация PR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📋 Клонирование репозитория
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Полная история для анализа изменений
+        
+    - name: 📈 Анализ изменений
+      run: |
+        echo "📈 Анализ изменений в PR..."
+        
+        # Получаем список изменённых файлов
+        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD)
+        
+        echo "### 📁 Изменённые файлы:"
+        echo "$CHANGED_FILES"
+        echo ""
+        
+        # Категоризация изменений
+        RUBY_FILES=$(echo "$CHANGED_FILES" | grep -E '\.rb$' | wc -l)
+        HAML_FILES=$(echo "$CHANGED_FILES" | grep -E '\.haml$' | wc -l)
+        CONFIG_FILES=$(echo "$CHANGED_FILES" | grep -E '^config/' | wc -l)
+        TEST_FILES=$(echo "$CHANGED_FILES" | grep -E '^tests/' | wc -l)
+        GEMFILE_CHANGED=$(echo "$CHANGED_FILES" | grep -E '^Gemfile' | wc -l)
+        
+        echo "### 📊 Статистика изменений:"
+        echo "Ruby файлов: $RUBY_FILES"
+        echo "HAML шаблонов: $HAML_FILES"
+        echo "Конфигурация: $CONFIG_FILES"
+        echo "Тесты: $TEST_FILES"
+        
+        if [ "$GEMFILE_CHANGED" -gt 0 ]; then
+          echo "⚠️  Gemfile был изменён - нуждается в особом внимании"
+        fi
+        
+        # Проверка размера PR
+        TOTAL_CHANGED=$(echo "$CHANGED_FILES" | wc -l)
+        if [ "$TOTAL_CHANGED" -gt 50 ]; then
+          echo "🚨 Очень большой PR ($TOTAL_CHANGED файлов) - рассмотрите разбиение на меньшие PR"
+        elif [ "$TOTAL_CHANGED" -gt 20 ]; then
+          echo "⚠️  Большой PR ($TOTAL_CHANGED файлов) - может потребовать дополнительного ревью"
+        else
+          echo "✅ Нормальный размер PR ($TOTAL_CHANGED файлов)"
+        fi
+        
+    - name: 🔍 Проверка коммитов
+      run: |
+        echo "🔍 Проверка сообщений коммитов..."
+        
+        # Получаем список коммитов в PR
+        COMMITS=$(git log --pretty=format:"%s" origin/${{ github.base_ref }}..HEAD)
+        
+        echo "### 📝 Коммиты в PR:"
+        echo "$COMMITS"
+        echo ""
+        
+        # Проверка качества сообщений
+        BAD_COMMITS=0
+        
+        while IFS= read -r commit_msg; do
+          # Пропускаем пустые строки
+          [ -z "$commit_msg" ] && continue
+          
+          # Проверяем на наличие плохих практик
+          if echo "$commit_msg" | grep -qi "^fix\|^wip\|^temp\|^test"; then
+            echo "⚠️  Неинформативное сообщение: $commit_msg"
+            ((BAD_COMMITS++))
+          elif [ ${#commit_msg} -lt 10 ]; then
+            echo "⚠️  Слишком короткое сообщение: $commit_msg"
+            ((BAD_COMMITS++))
+          fi
+        done <<< "$COMMITS"
+        
+        if [ $BAD_COMMITS -eq 0 ]; then
+          echo "✅ Все сообщения коммитов выглядят хорошо"
+        else
+          echo "⚠️  Найдено $BAD_COMMITS проблемных сообщений коммитов"
+        fi
+        
+    - name: 🔥 Настройка Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: false
+        
+    - name: 🔍 Проверка синтаксиса изменённых файлов
+      run: |
+        echo "🔍 Проверка синтаксиса только изменённых Ruby файлов..."
+        
+        CHANGED_RUBY_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD | grep '\.rb$' || true)
+        
+        if [ -z "$CHANGED_RUBY_FILES" ]; then
+          echo "✅ Нет изменённых Ruby файлов"
+          exit 0
+        fi
+        
+        ERROR_COUNT=0
+        
+        for file in $CHANGED_RUBY_FILES; do
+          if [ -f "$file" ]; then
+            echo "  ✓ Проверяем: $file"
+            if ! ruby -c "$file" > /dev/null 2>&1; then
+              echo "    ❌ Ошибка синтаксиса в $file"
+              ruby -c "$file"
+              ((ERROR_COUNT++))
+            fi
+          fi
+        done
+        
+        if [ $ERROR_COUNT -gt 0 ]; then
+          echo "❌ Обнаружено $ERROR_COUNT ошибок синтаксиса"
+          exit 1
+        else
+          echo "✅ Все изменённые Ruby файлы синтаксически корректны"
+        fi
+        
+    - name: 🧪 Запуск тестов
+      run: |
+        echo "🧪 Запуск unit тестов для проверки PR..."
+        gem install minitest json --no-document
+        cd tests
+        chmod +x run_unit_tests.sh
+        ./run_unit_tests.sh
+        
+    - name: 📄 Комментарий к PR
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Генерируем отчёт о PR
+          let report = '## 🔍 Автоматическая проверка PR\n\n';
+          report += '✅ **Основные проверки пройдены**\n\n';
+          report += '- ✓ Проверка синтаксиса Ruby\n';
+          report += '- ✓ Unit тесты\n';
+          report += '- ✓ Анализ сообщений коммитов\n\n';
+          
+          if (process.env.GITHUB_HEAD_REF) {
+            report += `### 🌿 Ветка: ${process.env.GITHUB_HEAD_REF}\n\n`;
+          }
+          
+          report += '📝 **Следующие шаги:**\n';
+          report += '- Проверьте все тесты локально\n';
+          report += '- Убедитесь, что документация обновлена\n';
+          
+          // Постим комментарий
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });

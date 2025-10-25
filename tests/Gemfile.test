@@ -1,0 +1,15 @@
+# Gemfile для тестового окружения без локальных зависимостей
+# Используется в CI/CD и для изолированного тестирования
+
+source 'https://rubygems.org'
+
+# Только необходимые для тестов гемы
+gem 'minitest', '~> 5.15'
+gem 'json', '~> 1.6', '>= 1.6.5'
+
+# Для будущего расширения тестов
+group :test do
+  gem 'minitest-reporters', require: false
+  gem 'capybara', require: false
+  gem 'selenium-webdriver', require: false
+end

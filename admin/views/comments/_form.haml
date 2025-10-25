@@ -1,0 +1,198 @@
+-# coding: utf-8
+-# Поле Title скрыто
+-# - error = @comment.errors.include?(:title)
+-# %fieldset.control-group{:class => error ? 'has-error' : ''}
+-#   =f.label :title, :class => 'control-label'
+-#   .controls
+-#     =f.text_field :title, :class => 'input-xlarge input-with-feedback', :autofocus => true
+-#     %span.help-inline=error ? f.error_message_on(:title, :class => 'text-error') : 'Заголовок'
+
+-# Поле номера заказа - первое по порядку
+- error = @comment.errors.include?(:order_eight_digit_id)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Номер заказа", :class => 'control-label'
+  .controls
+    =f.text_field :order_eight_digit_id, type: "number", :class => 'input-xlarge input-with-feedback', placeholder: "8-значный номер заказа (необязательно)", :autofocus => true
+    %span.help-inline=error ? f.error_message_on(:order_eight_digit_id, :class => 'text-error') : 'Номер заказа (необязательно)'
+    - if @comment.order_eight_digit_id.present?
+      %br
+      %small.text-info= "Заказ найден: #{@comment.order&.useraccount&.name || 'Данные заказа недоступны'}"
+
+- error = @comment.errors.include?(:name)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Имя", :class => 'control-label'
+  .controls
+    =f.text_field :name, :class => 'input-xlarge input-with-feedback'
+    - if error
+      %span.help-inline=f.error_message_on(:name, :class => 'text-error')
+
+- error = @comment.errors.include?(:body)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Текст", :class => 'control-label'
+  .controls
+    =f.text_area :body, :class => 'input-xlarge input-with-feedback', :rows => 6, :placeholder => 'Введите текст комментария...'
+    - if error
+      %span.help-inline=f.error_message_on(:body, :class => 'text-error')
+
+- lang=@lang.to_json
+- val=@comment.date.present? ? @comment.date.to_date.strftime("%d.%m.%Y") : ''
+%fieldset.control-group
+  =f.label "Число", :class => 'control-label'
+  #dates.container-fluid{style: "display: inline-block; margin-left: 15px; width: 300px;"}
+    %pre=val.present? ? val : "{{currDate}}"
+    .controls
+      %div
+        %vuejs-datepicker{name: "comment[date]", ":language" => lang, "format" => "dd.MM.yyyy", "placeholder" => "Выберите дату", "v-model" => "date" }
+
+- error = @comment.errors.include?(:rating)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Рейтинг", :class => 'control-label'
+  .controls
+    =f.text_field :rating, type: "number", min: 1, max: 5, step: 0.5, :class => 'input-xlarge input-with-feedback'
+    - if error
+      %span.help-inline=f.error_message_on(:rating, :class => 'text-error')
+
+- error = @comment.errors.include?(:published)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Публикация", :class => 'control-label'
+  .controls
+    .switch-container
+      %label.switch
+        =f.check_box :published, :checked => bit_field_to_bool(@comment.published), :class => 'switch-input'
+        %span.switch-slider.round
+        %span.switch-label Опубликовано
+    -# Debug: value=#{@comment.published.inspect}, type=#{@comment.published.class.to_s}, bit_result=#{bit_field_to_bool(@comment.published).to_s}
+    %span.help-inline=error ? f.error_message_on(:published, :class => 'text-error') : 'Переключите, чтобы опубликовать комментарий'
+
+.form-actions
+  =f.submit pat(:save), :class => 'btn btn-primary'
+  &nbsp;
+  =f.submit pat(:save_and_continue), :class => 'btn btn-info', :name => 'save_and_continue'
+  &nbsp;
+  =link_to pat(:cancel), url(:comments, :index), :class => 'btn'
+
+%script{:src => "https://unpkg.com/vuejs-datepicker"}
+:javascript
+  const app = new Vue({
+    el: '#dates',
+    components: {
+    	vuejsDatepicker
+    },
+    data: function(){
+      return{
+        date: ''
+      }
+    },
+    computed:{
+      currDate: function(){
+        var d = new Date(Date.parse(this.date));
+        var date = d.getDate() + "." + parseInt(d.getMonth() + 1)  + "."+ d.getFullYear();
+        return date
+      }
+    },
+    mounted: function(){
+      document.querySelectorAll("#dates input")[1].style.background = "#fff";
+    }
+  })
+
+:javascript
+  // Автозаполнение имени заказчика при вводе номера заказа
+  (function() {
+    var orderIdField = document.getElementById('comment_order_eight_digit_id');
+    var nameField = document.getElementById('comment_name');
+    
+    if (!orderIdField || !nameField) {
+      console.log('Поля для автозаполнения не найдены');
+      return;
+    }
+    
+    // Функция для запроса данных заказа
+    function fetchOrderData(orderId) {
+      if (!orderId || orderId.length !== 8) {
+        return;
+      }
+      
+      console.log('Запрашиваем данные для заказа:', orderId);
+      
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/api/order_info/' + orderId, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var response = JSON.parse(xhr.responseText);
+              console.log('Ответ сервера:', response);
+              
+              if (response.customer_name && response.customer_name.trim() !== '') {
+                // Автозаполняем имя только если поле пустое
+                if (nameField.value.trim() === '') {
+                  nameField.value = response.customer_name;
+                  console.log('Имя автозаполнено:', response.customer_name);
+                  
+                  // Подсвечиваем поле на короткое время
+                  nameField.style.backgroundColor = '#d4edda';
+                  setTimeout(function() {
+                    nameField.style.backgroundColor = '';
+                  }, 2000);
+                }
+                
+                // Показываем информацию о заказе
+                var helpBlock = orderIdField.parentNode.querySelector('.help-inline');
+                if (helpBlock) {
+                  helpBlock.innerHTML = 'Заказ найден: ' + response.customer_name + 
+                                       ' (' + response.order_date + ', ' + response.city + ')';
+                  helpBlock.style.color = '#28a745';
+                }
+              }
+            } catch (e) {
+              console.error('Ошибка парсинга JSON:', e);
+              showError('Ошибка обработки ответа сервера');
+            }
+          } else if (xhr.status === 404) {
+            showError('Заказ с данным номером не найден');
+          } else if (xhr.status === 400) {
+            showError('Некорректный номер заказа (должен быть 8-значным)');
+          } else {
+            showError('Ошибка при получении данных заказа');
+          }
+        }
+      };
+      
+      xhr.onerror = function() {
+        showError('Ошибка сетевого соединения');
+      };
+      
+      xhr.send();
+    }
+    
+    // Функция для отображения ошибок
+    function showError(message) {
+      console.log('Ошибка:', message);
+      var helpBlock = orderIdField.parentNode.querySelector('.help-inline');
+      if (helpBlock) {
+        helpBlock.innerHTML = message;
+        helpBlock.style.color = '#dc3545';
+      }
+    }
+    
+    // Обработчик события потери фокуса
+    orderIdField.addEventListener('blur', function() {
+      var orderId = this.value.trim();
+      
+      if (orderId === '') {
+        // Очищаем справочную информацию если поле пустое
+        var helpBlock = this.parentNode.querySelector('.help-inline');
+        if (helpBlock) {
+          helpBlock.innerHTML = 'Номер заказа (необязательно)';
+          helpBlock.style.color = '';
+        }
+        return;
+      }
+      
+      fetchOrderData(orderId);
+    });
+    
+    console.log('Автозаполнение имени заказчика инициализировано');
+  })();

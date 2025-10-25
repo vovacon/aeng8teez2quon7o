@@ -1,0 +1,388 @@
+<%
+  # Логика отображения товаров:
+  # 1. Если у отзыва есть order_eight_digit_id - используем товары из реального заказа
+  # 2. Если нет - fallback к json_order (старая система)
+  # 3. Метод @post.products_data сам определяет источник данных
+
+  access = false
+  if current_account
+    if current_account.id == 171; access = true; end;
+  end
+
+  @post = Smile.find(@id)
+
+%>
+
+<%
+if @pid
+  pr = Product.find_by_id(@pid)
+  back_url = '<a href="/smiles/'+@pid+'" style="cursor:pointer;color:#3a4f10;">Смотреть фото доставок "'+pr.header+'"</a><br />'
+  link1 = '/smiles/product/' + @pid.to_s + '/' + @p_next.to_s
+  link2 = '/smiles/product/' + @pid.to_s + '/' + @p_prev.to_s
+else
+  link1 = '/smiles/' + @p_next.to_s
+  link2 = '/smiles/' + @p_prev.to_s
+end
+%>
+
+<% begin
+  # Получаем данные о товарах (с fallback к json_order)
+  products_data = @post.products_data
+  x = products_data['0']
+  
+  if x
+    prdct_id = x['id'].to_i;
+    cmplct_title = x['complect'];
+    prdct = Product.find_by_id(prdct_id)
+    
+    if prdct && Complect.find_by_title(cmplct_title)
+      cmplct_price = prdct.get_cmplct_price_by_title(cmplct_title, @subdomain.discount_pool_id)
+      cmplct_header = Complect.find_by_title(cmplct_title).header
+    elsif prdct && prdct.complects.any?
+      cmplct_title = prdct.complects[0].title
+      cmplct_price = prdct.get_cmplct_price_by_title(cmplct_title, @subdomain.discount_pool_id)
+      cmplct_header = Complect.find_by_title(cmplct_title).header
+    else
+      # Fallback values when product is not found
+      prdct = nil
+      cmplct_title = 'standard'
+      cmplct_price = x.has_key?('price') ? x['price'].to_i : 0
+      cmplct_header = x.has_key?('title') ? x['title'] : 'Букет цветов'
+    end
+  else
+    # Полный fallback когда нет данных
+    prdct = nil
+    prdct_id = 0
+    cmplct_title = 'standard'
+    cmplct_price = 0
+    cmplct_header = 'Букет цветов'
+  end
+rescue StandardError => e
+  # Set fallback values on error
+  prdct = nil
+  prdct_id = 0
+  cmplct_title = 'standard'
+  cmplct_price = 0
+  cmplct_header = 'Букет цветов'
+end %>
+
+<%
+  # Микроразметка Review - только при наличии связанного комментария
+  comment = @post.related_comment
+%>
+
+<% if @post.has_review_comment? %>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    "author": {
+      "@type": "Person",
+      "name": "<%=comment.name.present? ? comment.name : @post.customer_name%>"
+    },
+    "datePublished": "<%=(comment.created_at || @post.created_at).strftime('%Y-%m-%d')%>",
+    "reviewBody": "<%=comment.body%>",
+    "reviewRating": {
+      "@type": "Rating",
+      "ratingValue": "<%=comment.rating || @post.rating%>",
+      "bestRating": "5"
+    },
+    "itemReviewed": {
+      "@type": "Product",
+      "name": "<%=begin; @post.review_item_name || (prdct ? prdct.header : cmplct_header); rescue; prdct ? prdct.header : cmplct_header; end%>",
+      "image": "<%=begin; @post.review_item_image || (prdct ? prdct.thumb_image(true) : '/images/default-product.jpg'); rescue; prdct ? prdct.thumb_image(true) : '/images/default-product.jpg'; end%>"
+    }
+  }
+</script>
+<% end %>
+
+<%
+  # Формирование данных для хлебных крошек
+  current_protocol = request.env['HTTP_X_FORWARDED_PROTO'] || (request.env['HTTPS'] ? 'https' : 'http')
+  current_host = request.env['HTTP_HOST']
+  base_url = "#{current_protocol}://#{current_host}"
+  
+  # URL текущей страницы
+  current_url = "#{base_url}/smiles/#{@post.slug || @post.id}"
+  
+  # Название для текущей страницы (используем title без даты)
+  page_title = @post.title.to_s.gsub(/\s*\|\s*\d{4}-\d{2}-\d{2}\s*$/, '').strip
+  page_title = "Фото доставки" if page_title.empty?
+%>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Главная",
+      "item": "<%=base_url%>/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Улыбки",
+      "item": "<%=base_url%>/smiles/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "<%=page_title%>",
+      "item": "<%=current_url%>"
+    }
+  ]
+}
+</script>
+
+<%
+  # Формирование данных для WebPage разметки
+  product_name = prdct ? prdct.header : cmplct_header
+  webpage_name = "Улыбки получателей – #{product_name}"
+  
+  # Формирование описания
+  customer_name = @post.customer_name
+  date_str = @post.created_at.strftime('%d %B %Y').gsub('January', 'января').gsub('February', 'февраля').gsub('March', 'марта').gsub('April', 'апреля').gsub('May', 'мая').gsub('June', 'июня').gsub('July', 'июля').gsub('August', 'августа').gsub('September', 'сентября').gsub('October', 'октября').gsub('November', 'ноября').gsub('December', 'декабря')
+  
+  if customer_name && customer_name.present? && customer_name.strip != 'Покупатель'
+    webpage_description = "Фото получателя букета «#{product_name}» от клиента #{customer_name} от #{date_str}"
+  else
+    webpage_description = "Фото получателя букета «#{product_name}» от #{date_str}"
+  end
+%>
+
+<%# Enhanced WebPage schema using helper %>
+<% 
+  breadcrumbs = [
+    { name: "Главная", url: "#{request.base_url}/" },
+    { name: "Отзывы", url: "#{request.base_url}/smiles" },
+    { name: webpage_name, url: current_url }
+  ]
+  
+  webpage_options = {
+    name: webpage_name,
+    description: webpage_description,
+    url: current_url,
+    date_published: @post.created_at.strftime('%Y-%m-%d'),
+    date_modified: @post.updated_at ? @post.updated_at.strftime('%Y-%m-%d') : @post.created_at.strftime('%Y-%m-%d'),
+    breadcrumbs: breadcrumbs,
+    website_name: "Розарио Цветы"
+  }
+%>
+<%= webpage_schema(webpage_options) %>
+
+<%# <div style="height: 44px" class="hidden-xs hidden-sm"></div> %>
+<section class="post-detail">
+  <div>
+    <div class="img-box" style="position: relative;">
+      <%
+        # Логика для alt-атрибута изображения
+        alt_text = if @post.alt && @post.alt.present? && @post.alt.strip.length > 0
+                     process_smile_alt(@post)
+                   else
+                     # Получаем eight_digit_id заказа для fallback
+                     order_eight_digit_id = nil
+                     begin
+                       if @post.json_order.present?
+                         order_data = JSON.parse(@post.json_order)
+                         first_item = order_data['0']
+                         if first_item && first_item['id']
+                           order_id = first_item['id'].to_i
+                           if order_id > 0
+                             matching_order = Order.find_by_id(order_id) || Order.find_by_eight_digit_id(order_id)
+                             order_eight_digit_id = matching_order.eight_digit_id if matching_order
+                           end
+                         end
+                       end
+                     rescue => e
+                       # В случае ошибки order_eight_digit_id останется nil
+                     end
+                     
+                     # Приоритет: customer_name -> eight_digit_id
+                     customer_name = @post.customer_name
+                     product_name_for_alt = prdct ? prdct.header : cmplct_header
+                     if customer_name && customer_name.present? && customer_name.strip != 'Покупатель'
+                       "Фото букета «#{product_name_for_alt}» от клиента #{customer_name}"
+                     elsif order_eight_digit_id
+                       "Фото букета «#{product_name_for_alt}». Заказ № #{order_eight_digit_id}"
+                     else
+                       "Фото букета «#{product_name_for_alt}»"
+                     end
+                   end
+      %>
+      <%= smile_image_schema(@post, alt_text) %>
+      <img class="animated" alt="<%=alt_text%>" src="<%='/uploads/smiles/'+@post.images_identifier%>" onclick="//location.href = '/smiles/<%=@p_prev%>/'" />
+      <div id="qar_l"><img class="transition" id="ar_l" src="/images/arrow/ar_l.png" /></div>
+      <div id="qar_r"><img class="transition" id="ar_r" src="/images/arrow/ar_r.png" /></div>
+      <%#<div class="ttlll">%>
+        <%#<h2 style="color:#FFF">%><%#=@post.date%><%#</h2>%>
+      <%#</div>%>
+      <a href="<%=link1%>" style="display: block; position: absolute; top: 0; bottom: 0; right: 0; left: 25%;"></a>
+      <a href="<%=link2%>" style="display: block; position: absolute; top: 0; bottom: 0; right: 75%; left: 0;"></a>
+    </div>
+    <h1>
+      <%=process_smile_title(@post)%>
+    </h1>
+    <div align="left" style="font-size: 12px; padding-bottom: 24px;">
+      <%if back_url%><%=back_url%><%end%>
+      <a href="/smiles/" style="cursor:pointer;color:#3a4f10;">Смотреть все фото доставок</a>
+    </div>
+    <%=process_smile_body(@post) %>
+    <style type="text/css">
+      #order    { width: 100%; margin-bottom: 24px; font-size: 16px; }
+      #order td { padding: 24px 0; border-bottom: 1px solid rgba(0,0,0,0.1); }
+      #order td img { width: 150px; }
+    </style>
+    <table id="order">
+      <% @post.products_data.each { |item| %>
+        <%
+          skip = false
+          begin
+            prdct_id = item[1]['id'].to_i;
+            cmplct_title = item[1]['complect'];
+            prdct = Product.find_by_id(prdct_id)
+            
+            # Проверяем, есть ли информация о статусе товара (из order_data)
+            if item[1].has_key?('product_exists')
+              # Новая логика: используем данные из order_products
+              unless item[1]['product_exists']
+                # Товар удален или не найден, используем данные из заказа
+                prdct = nil
+              end
+              cmplct_price = item[1]['price'].to_i
+              cmplct_header = item[1]['title']
+              
+              # Попытаемся получить информацию о комплекте
+              if prdct && Complect.find_by_title(cmplct_title)
+                complect = Complect.find_by_title(cmplct_title)
+                cmplct_header = complect.header
+                # Можно оставить цену из заказа или пересчитать
+                # cmplct_price = prdct.get_cmplct_price_by_title(cmplct_title, @subdomain.discount_pool_id)
+              end
+            else
+              # Старая логика: json_order
+              if Complect.find_by_title(cmplct_title)
+                cmplct_price = prdct.get_cmplct_price_by_title(cmplct_title, @subdomain.discount_pool_id)
+                cmplct_header = Complect.find_by_title(cmplct_title).header
+              else
+                cmplct_title = Product.find(prdct_id).complects[0].title
+                cmplct_price = prdct.get_cmplct_price_by_title(cmplct_title, @subdomain.discount_pool_id)
+                cmplct_header = Complect.find_by_title(cmplct_title).header
+              end
+            end
+          rescue StandardError => e
+            skip = true
+          end
+        %>
+        <% if !skip %><tr>
+          <%= product_image_schema(prdct, true) if prdct %>
+          <td width="100">
+            <% if prdct %>
+              <a href="/product/<%=prdct_id%>"><%=image_tag(prdct.thumb_image(true), itemprop: "image")%></a>
+            <% else %>
+              <!-- Плейсхолдер для удаленного товара -->
+              <div style="width: 100px; height: 100px; background-color: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #999;">
+                Нет фото
+              </div>
+            <% end %>
+          </td>
+          <td style="padding-left: 24px;" itemscope itemtype="https://schema.org/Product">
+            <% if prdct %>
+              <h3 itemprop="name" style="margin:0"><a href="/product/<%=prdct_id%>"><%=prdct.header%></a></h3>
+              <span itemprop="description"><%=cmplct_header%></span>
+              <div>
+                <% @rating = prdct.rating.to_i %>
+                <%= render "partials/_rating", :handlers => [:haml], layout: false %>
+              </div>
+              <div itemprop="offers" itemscope itemtype="https://schema.org/Offer" style="display:none;">
+                <span itemprop="price"><%=cmplct_price%></span>
+                <span itemprop="priceCurrency">RUB</span>
+              </div>
+            <% else %>
+              <h3 style="margin:0; color: #999;"><%=cmplct_header%></h3>
+              <span style="color: #666; font-style: italic;">Товар удалён из каталога</span>
+            <% end %>
+          </td>
+          <td align="right" style="white-space:nowrap"><%=cmplct_price%> р.</td>
+        </tr><% end %>
+      <% } %>
+    </table>
+    
+    <!-- Блок с отзывом клиента -->
+    <% if @post.has_review_comment? %>
+      <%
+        review_comment = @post.related_comment
+        comment_author = review_comment.name.present? ? review_comment.name : (@post.customer_name || 'Клиент')
+        comment_date = review_comment.date || review_comment.created_at
+        comment_rating = review_comment.rating || @post.rating || 5
+      %>
+      <div style="margin: 32px 0; padding: 24px; background: #f9f9f9; border-left: 4px solid #4CAF50; border-radius: 4px;">
+        <h3 style="margin: 0 0 16px 0; color: #2c3e50; font-size: 18px;">💬 Отзыв клиента</h3>
+        
+        <div style="margin-bottom: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px;">
+          <div style="font-weight: bold; color: #34495e;">
+            👤 <%= comment_author %>
+          </div>
+          <% if comment_date %>
+            <div style="color: #7f8c8d; font-size: 14px;">
+              📅 <%= comment_date.strftime('%d.%m.%Y') %>
+            </div>
+          <% end %>
+          <% if comment_rating && comment_rating > 0 %>
+            <div style="display: flex; align-items: center;">
+              <span style="margin-right: 8px; color: #7f8c8d;">Оценка:</span>
+              <% @rating = comment_rating.to_i %>
+              <%= render "partials/_rating", :handlers => [:haml], layout: false %>
+            </div>
+          <% end %>
+        </div>
+        
+        <% if review_comment.title && review_comment.title.present? %>
+          <h4 style="margin: 0 0 12px 0; color: #34495e; font-size: 16px; font-weight: 600;">
+            <%= h(review_comment.title) %>
+          </h4>
+        <% end %>
+        
+        <div style="color: #2c3e50; line-height: 1.6; font-size: 15px;">
+          <%= h(review_comment.body).gsub("\n", "<br>").html_safe %>
+        </div>
+        
+        <% if @post.order_eight_digit_id %>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 13px; color: #7f8c8d;">
+            📦 Заказ № <%= @post.order_eight_digit_id %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+    <!-- Конец блока с отзывом -->
+    
+    <div align="center" style="padding-bottom: 24px;">
+      <a href="/" class="btn" style="cursor:pointer;font-size:16px;">Перейти в каталог букетов</a>
+    </div>
+  </div>
+
+</section>
+
+<%#<script type="text/javascript">
+$(window).load(function() {
+  function scrollToElement(theElement) {
+    var selectedPosX = 0,
+        selectedPosY = 0;
+    while (theElement != null) {
+      selectedPosX += theElement.offsetLeft;
+      selectedPosY += theElement.offsetTop;
+      theElement = theElement.offsetParent;
+    }
+    window.scrollTo(selectedPosX,selectedPosY);
+  }
+  var mainnn = document.getElementById('mainnn');
+  scrollToElement(mainnn);
+  setTimeout(function() {
+    scrollToElement(mainnn);
+  }, 10);
+});
+</script>%>
+
+<!-- Микроразметка Review теперь показывается только при наличии связанного комментария -->

@@ -1,0 +1,758 @@
+-# coding: utf-8
+
+-# Поле номера заказа - перемещено в начало формы
+- error = @smile.errors.include?(:order_eight_digit_id)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Номер заказа", :class => 'control-label'
+  .controls
+    =f.text_field :order_eight_digit_id, type: "number", :class => 'input-xlarge input-with-feedback', placeholder: "8-значный номер заказа (необязательно)", id: 'smile_order_eight_digit_id', :autofocus => true
+    %span.help-inline=error ? f.error_message_on(:order_eight_digit_id, :class => 'text-error') : 'Номер заказа (необязательно)'
+    
+    -# Контейнер для отображения информации о заказе и товарах
+    #order-info-container{style: 'margin-top: 10px; display: none;'}
+      .alert.alert-info#order-customer-info{style: 'margin-bottom: 10px;'}
+      %h5 Выберите основной товар:
+      #order-products-list.well{style: 'max-height: 300px; overflow-y: auto;'}
+        .loading-message{style: 'text-align: center; padding: 20px;'}
+          %i.fa.fa-spinner.fa-spin
+          Загрузка товаров...
+    
+    -# Контейнер для ошибок
+    #order-error-container.alert.alert-danger{style: 'margin-top: 10px; display: none;'}
+    
+    -# Скрытое поле для выбранного товара
+    =f.hidden_field :order_products_base_id, id: 'smile_order_products_base_id'
+    
+    - if @smile.order_eight_digit_id.present?
+      %br
+      - order_info = @smile.order_info_for_admin
+      - if order_info
+        %small.text-info
+          %strong Заказ найден:
+          = order_info[:user_info]
+          %br
+          %em Дата заказа: #{order_info[:order_date]}
+          - if order_info[:debug_info]
+            %br
+            %small.text-muted Отладка: useraccount_id=#{order_info[:debug_info][:useraccount_id]}, user_found=#{order_info[:debug_info][:user_found]}, name=#{order_info[:debug_info][:user_has_name]}, surname=#{order_info[:debug_info][:user_has_surname]}, email=#{order_info[:debug_info][:user_has_email]}
+      - else
+        %small.text-warning
+          %strong Внимание:
+          Заказ с номером #{@smile.order_eight_digit_id} не найден в системе
+
+- error = @smile.errors.include?(:title)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "H1", :class => 'control-label'
+  .controls
+    =f.text_field :title, :class => 'input-xlarge input-with-feedback'
+    %span.help-inline=error ? f.error_message_on(:title, :class => 'text-error') : 'H1 заголовок'
+    
+- error = @smile.errors.include?(:slug)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label :slug, :class => 'control-label'
+  .controls
+    =f.text_field :slug, :class => 'input-xlarge input-with-feedback'
+    %span.help-inline=error ? f.error_message_on(:slug, :class => 'text-error') : 'Human friendly URL'
+
+-# Поле date убрано - автоматически устанавливается NULL при сохранении
+
+- error = @smile.errors.include?(:body)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label :body, :class => 'control-label'
+  .controls
+    =f.text_area :body, :class => 'input-xlarge input-with-feedback ckeditor'
+    %span.help-inline=error ? f.error_message_on(:body, :class => 'text-error') : 'Текст'
+
+
+- error = @smile.errors.include?(:images)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Фото", :class => 'control-label'
+
+  %div=image_tag(@smile.images, :class => 'img-rounded', :style => 'max-height:200px; margin: 10px 30px;') if @smile.images.present?
+  .img_preview{style: 'display:none; max-height:200px; margin-bottom: 15px;'}
+    %img#img_preview{style: 'margin: 10px 30px;'}/
+  .controls
+    %span.btn.btn-file
+      Загрузить
+      =f.file_field :images, :class => 'input-xlarge input-with-feedback', onchange: 'previewImg(this)'
+    %span.help-inline=error ? f.error_message_on(:images, :class => 'text-error') : 'Фото'
+
+- error = @smile.errors.include?(:alt)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Alt", :class => 'control-label'
+  .controls
+    =f.text_field :alt, :class => 'input-xlarge input-with-feedback'
+    %span.help-inline=error ? f.error_message_on(:alt, :class => 'text-error') : 'Тег alt для изображения'
+
+%fieldset.control-group
+  =f.label "Продукт", :class => 'control-label'
+  #products.container-fluid{ style: "display: inline-block; margin-left: 15px; width: 80%;"}
+    - products = @product
+    .controls
+      %div
+      - val_names = @product_n
+      - val_complects = @product_c
+      %product-data{":components" => val_complects,
+                    ":names" => val_names,
+                    ":products" => @product}
+      %span.help-inline= 'id - Название продукта'
+
+- error = @smile.errors.include?(:rating)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Рейтинг", :class => 'control-label'
+  .controls
+    =f.text_field :rating, type: "number", min: 1, max: 5, step: 0.5, :class => 'input-xlarge input-with-feedback'
+    %span.help-inline=error ? f.error_message_on(:rating, :class => 'text-error') : 'Рейтинг'
+
+- error = @smile.errors.include?(:sidebar)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Выбрать для отображения в сайдбаре", :class => 'control-label'
+  .controls
+    =f.check_box :sidebar, :class => 'input-xlarge input-with-feedback'
+    %span.help-inline=error ? f.error_message_on(:sidebar, :class => 'text-error') : ''
+
+- error = @smile.errors.include?(:published)
+%fieldset.control-group{:class => error ? 'has-error' : ''}
+  =f.label "Публикация", :class => 'control-label'
+  .controls
+    .switch-container
+      %label.switch
+        =f.check_box :published, :checked => bit_field_to_bool(@smile.published), :class => 'switch-input'
+        %span.switch-slider.round
+        %span.switch-label Опубликовано
+    -# Debug: value=#{@smile.published.inspect}, type=#{@smile.published.class.to_s}, bit_result=#{bit_field_to_bool(@smile.published).to_s}
+    %span.help-inline=error ? f.error_message_on(:published, :class => 'text-error') : 'Переключите, чтобы опубликовать смайл'
+
+=partial 'seo/seo_fields', locals: { f: f, data: @smile, h1: false, is_smile_page: true }
+
+.form-actions
+  =f.submit pat(:save), :class => 'btn btn-primary'
+  &nbsp;
+  =f.submit pat(:save_and_continue), :class => 'btn btn-info', :name => 'save_and_continue'
+  &nbsp;
+  =link_to pat(:cancel), url(:smiles, :index), :class => 'btn'
+
+:javascript
+  function previewImg(input) {
+    if (input.files && input.files[0]) {
+      var reader = new FileReader();
+      $('.img-rounded').css('display', 'none');
+      $('.img_preview').css('display', 'block');
+      reader.onload = function (e) {
+        $('#img_preview')
+          .attr('src', e.target.result)
+          .width('auto')
+          .height(200);
+      };
+
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+  Vue.component('v-select', VueSelect.VueSelect);
+  const ProductData = Vue.component('product-data', {
+    props: {
+      names:{
+        type: Array,
+        default: function(){
+          return [""]
+        }
+      },
+      components:{
+        type: Array,
+        default: function(){
+          return [""]
+        }
+      },
+      products:{
+        type: Array,
+        default: function(){
+          return []
+        }
+      },
+    },
+    data: function () {
+      return {
+        optionsNames: this.products,
+        optionsComponents: [],
+        productNames: this.names,
+        productComponents: this.components,
+        upd: false
+      }
+    },
+    computed: {
+      selected_names:{
+        get: function () {
+          return this.productNames
+        },
+        set: function (val) {
+          this.productNames = this.val
+        }
+      },
+      selected_components:{
+        get: function () {
+          return this.productComponents
+        },
+        set: function (val) {
+          this.productComponents = this.val
+        }
+      },
+      allComponents:{
+        get: function () {
+          return this.optionsComponents
+        },
+        set: function (val) {
+          this.optionsComponents = this.val
+        }
+      }
+    },
+    watch: {
+      productNames: function(val){
+        var data = this.productNames
+        this.optionsComponents = null;
+        this.optionsComponents = [];
+        var index = 0;
+        var ids = "";
+        var scope = this
+        data.forEach(function(val, i, arr) {
+          var v = val.split(' - ')[0];
+          if (v.length > 0) {
+            ids += 'product_id[' + i + ']=' + v;
+            if(arr.length > 1 && i < arr.length -1){
+              ids += "&";
+            }
+          }
+        });
+        fetch('/api/v1/orders/complects?'+ids)
+          .then((response) => {
+            if(response.ok) {
+              return response.json();
+            }
+            throw new Error('Network error');
+          })
+          .then((response) => {
+            response.forEach(function(val, i, arr) {
+              if(!val.includes(scope.productComponents[i])){
+                scope.productComponents[i] = val[0]
+              }
+              scope.allComponents.push(val);
+            });
+          })
+          .catch((error) => {
+              console.log(error);
+          });
+      }
+    },
+    methods: {
+      addProductInput(){
+        this.selected_names.push("");
+        this.selected_components.push("");
+      },
+      removeAll(){
+        this.productNames = [""];
+        this.productComponents = [""];
+      },
+      removeRow(index) {
+        this.selected_names.splice(index,1);
+        this.selected_components.splice(index,1);
+      },
+    },
+    mounted(){
+      if(this.names.length == 0){
+        this.selected_names.push("");
+        this.selected_components.push("");
+      } else {
+
+      }
+    },
+    template: `<div>
+                <ul style="width:90%; list-style:none;">
+                  <li
+                    v-for="(name, index) in selected_names"
+                    style="padding-bottom: 15px; width: 100%;"
+                  >
+                    <v-select
+                      v-model="selected_names[index]"
+                      :options="optionsNames"
+                      style="width: 500px; max-width: 500px; float: left; margin:5px 20px 5px 0"
+                     >
+                    </v-select>
+
+                    <v-select
+                      v-model="selected_components[index]"
+                      :options="allComponents[index]"
+                      style="float: left; width: 300px; max-width: 300px; margin:5px 0 5px 0"
+                     >
+                    </v-select>
+
+
+                    <button
+                      class="btn btn-primary"
+                      @click.prevent="removeRow(index)"
+                      @enter.prevent=""
+                      style="margin: 10px 0 0 10px; display: inline-block"
+                    >X</button>
+
+                    <input :value="selected_names[index]" :id="'smile_products_names['+index+']'" :name="'smile[order][products_names['+index+']]'" type="hidden">
+                    <input v-model="selected_components[index]" :id="'smile_products_components['+index+']'" :name="'smile[order][products_components['+index+']]'" type="hidden">
+                  </li>
+
+                </ul>
+
+                <div class="clearfix"></div>
+                <div>
+                  <button class="btn btn-primary" @click.prevent="addProductInput()">Добавить продукт</button>
+                  <button class="btn btn-primary" @click.prevent="removeAll() "@enter.prevent="">Удалить все</button>
+                </div>
+              </div>
+              `
+
+  });
+  new Vue({
+    el: '#products',
+    components: {'product-data': ProductData},
+    data: function() {
+      return {
+        productComplect: '',
+        options: []
+      }
+    },
+  });
+
+:javascript
+  // Инициализация формы
+  (function() {
+    // Установка значения по умолчанию для поля "Og type"
+    var ogTypeField = document.getElementById('smile_seo_attributes_og_type');
+    if (ogTypeField && (!ogTypeField.value || ogTypeField.value.trim() === '')) {
+      ogTypeField.value = 'website';
+      console.log('Установлено значение по умолчанию для OG Type: website');
+    }
+  })();
+  
+  // Интерактивный загрузчик товаров заказа
+  (function() {
+    var orderIdField = document.getElementById('smile_order_eight_digit_id');
+    var orderInfoContainer = document.getElementById('order-info-container');
+    var orderCustomerInfo = document.getElementById('order-customer-info');
+    var orderProductsList = document.getElementById('order-products-list');
+    var orderErrorContainer = document.getElementById('order-error-container');
+    
+    if (!orderIdField) {
+      console.log('Поле номера заказа не найдено');
+      return;
+    }
+    
+    var selectedProductId = null; // Сохраняем выбранный товар
+    
+    // Функция для запроса товаров заказа
+    function fetchOrderProducts(orderId) {
+      if (!orderId || orderId.length < 6) {
+        hideOrderInfo();
+        return;
+      }
+      
+      console.log('Запрашиваем товары для заказа:', orderId);
+      
+      // Показываем лоадер
+      showLoading();
+      
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/admin/smiles/order_products/' + orderId, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var response = JSON.parse(xhr.responseText);
+              console.log('Ответ сервера:', response);
+              
+              if (response.success) {
+                showOrderProducts(response);
+              } else {
+                showError(response.error || 'Неизвестная ошибка');
+              }
+            } catch (e) {
+              console.error('Ошибка парсинга JSON:', e);
+              showError('Ошибка обработки ответа сервера');
+            }
+          } else {
+            showError('Ошибка при получении данных заказа');
+          }
+        }
+      };
+      
+      xhr.onerror = function() {
+        showError('Ошибка соединения с сервером');
+      };
+      
+      xhr.send();
+    }
+    
+    // Показать лоадер
+    function showLoading() {
+      hideError();
+      orderInfoContainer.style.display = 'block';
+      orderProductsList.innerHTML = '<div class="loading-message" style="text-align: center; padding: 20px;"><i class="fa fa-spinner fa-spin"></i> Загрузка товаров...</div>';
+      orderCustomerInfo.style.display = 'none';
+    }
+    
+    // Показать список товаров
+    function showOrderProducts(data) {
+      hideError();
+      orderInfoContainer.style.display = 'block';
+      
+      // Показываем информацию о заказе
+      var customerName = data.customer_name || 'Неизвестный клиент';
+      orderCustomerInfo.innerHTML = '<strong>Заказ #' + data.order_id + '</strong> - Клиент: ' + customerName;
+      orderCustomerInfo.style.display = 'block';
+      
+      // Формируем список товаров
+      var productsHtml = '';
+      data.products.forEach(function(product, index) {
+        var statusClass = product.product_exists ? 'success' : 'danger';
+        var statusIcon = product.product_exists ? 'fa-check' : 'fa-exclamation-triangle';
+        var errorText = product.error ? ' (Ошибка: ' + product.error + ')' : '';
+        
+        productsHtml += '<div class="product-item" style="border: 1px solid #ddd; margin-bottom: 10px; padding: 10px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;" data-product-id="' + product.id + '">';
+        productsHtml += '<label class="radio" style="margin-bottom: 5px; cursor: pointer; width: 100%; display: block;">';
+        productsHtml += '<input type="radio" name="selected_product" value="' + product.base_id + '" data-product-id="' + product.id + '" data-title="' + product.title.replace(/"/g, '&quot;') + '" data-complect="' + product.typing + '" data-base-id="' + product.base_id + '" style="margin-right: 8px;">';
+        productsHtml += '<strong>' + product.title + '</strong>';
+        productsHtml += '</label>';
+        productsHtml += '<div style="margin-left: 20px; color: #666; font-size: 12px;">';
+        productsHtml += '<span class="label label-' + statusClass + '" style="margin-right: 10px;"><i class="fa ' + statusIcon + '"></i> ID: ' + product.id + '</span>';
+        productsHtml += 'Количество: ' + product.quantity + ' | ';
+        productsHtml += 'Цена: ' + product.price + ' р. | ';
+        productsHtml += 'Комплект: ' + (product.complect_name || product.typing);
+        productsHtml += errorText;
+        productsHtml += '</div>';
+        productsHtml += '</div>';
+      });
+      
+      orderProductsList.innerHTML = productsHtml;
+      
+      // Автоматически выбираем первый товар
+      var firstRadio = orderProductsList.querySelector('input[type="radio"]');
+      if (firstRadio) {
+        firstRadio.checked = true;
+        firstRadio.dispatchEvent(new Event('change'));
+        
+        // Сразу сохраняем первый товар в скрытое поле
+        var hiddenField = document.getElementById('smile_order_products_base_id');
+        if (hiddenField) {
+          hiddenField.value = firstRadio.value;
+          console.log('Автоматически выбран первый товар с base_id:', firstRadio.value);
+        }
+      }
+      
+      // Обработчики выбора товаров
+      var productItems = orderProductsList.querySelectorAll('.product-item');
+      var radioButtons = orderProductsList.querySelectorAll('input[type="radio"]');
+      
+      // Обработчик клика по всему блоку товара
+      productItems.forEach(function(item) {
+        var radio = item.querySelector('input[type="radio"]');
+        
+        // Клик по блоку
+        item.addEventListener('click', function(e) {
+          // Предотвращаем двойное срабатывание при клике на саму радиокнопку
+          if (e.target.type === 'radio') {
+            return;
+          }
+          
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change'));
+        });
+        
+        // Ховер эффекты
+        item.addEventListener('mouseenter', function() {
+          if (!radio.checked) {
+            this.style.backgroundColor = '#f8f9fa';
+            this.style.borderColor = '#007bff';
+          }
+        });
+        
+        item.addEventListener('mouseleave', function() {
+          if (!radio.checked) {
+            this.style.backgroundColor = '';
+            this.style.borderColor = '#ddd';
+          }
+        });
+      });
+      
+      // Обработчик изменения радиокнопок
+      radioButtons.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+          // Сначала сбрасываем стили со всех блоков
+          productItems.forEach(function(item) {
+            item.style.backgroundColor = '';
+            item.style.borderColor = '#ddd';
+          });
+          
+          if (this.checked) {
+            selectedProductId = this.value;
+            
+            // Подсвечиваем выбранный блок
+            var selectedItem = this.closest('.product-item');
+            selectedItem.style.backgroundColor = '#e3f2fd';
+            selectedItem.style.borderColor = '#2196f3';
+            
+            console.log('Выбран товар:', {
+              base_id: selectedProductId,  // Теперь selectedProductId это base_id
+              product_id: this.dataset.productId,
+              title: this.dataset.title,
+              complect: this.dataset.complect
+            });
+            
+            // Сохраняем выбранный base_id в скрытое поле
+            var hiddenField = document.getElementById('smile_order_products_base_id');
+            if (hiddenField) {
+              hiddenField.value = selectedProductId;
+              console.log('Сохранён base_id в скрытое поле:', selectedProductId);
+            }
+          }
+        });
+      });
+      
+      // Автозаполнение полей только для страницы new
+      autoFillFieldsForNewSmile(data);
+    }
+    
+    // Транслитерация русских символов в латинские
+    function transliterate(text) {
+      var translitMap = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh',
+        'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+        'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c',
+        'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+        'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo', 'Ж': 'Zh',
+        'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O',
+        'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'H', 'Ц': 'C',
+        'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Sch', 'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya'
+      };
+      
+      return text.replace(/[\u0410-\u044f\u0401\u0451]/g, function(char) {
+        return translitMap[char] || char;
+      });
+    }
+    
+    // Генерация slug на основе данных заказа
+    function generateSlugFromOrder(orderData) {
+      try {
+        var parts = [];
+        
+        // Основа - название товара (очищенное и транслитерированное)
+        if (orderData.main_product_name) {
+          var cleanProductName = transliterate(orderData.main_product_name)
+            .toLowerCase()
+            .replace(/«|»|"|'|\(|\)|\[|\]|\{|\}/g, '') // Убираем кавычки и скобки
+            .replace(/[^a-z0-9\s-]/g, '') // Оставляем только латинские буквы, цифры, пробелы и дефисы
+            .trim()
+            .replace(/\s+/g, '-') // Заменяем пробелы на дефисы
+            .replace(/-+/g, '-') // Убираем повторяющиеся дефисы
+            .replace(/^-+|-+$/g, ''); // Убираем дефисы в начале и конце
+            
+          if (cleanProductName) {
+            parts.push(cleanProductName);
+          }
+        }
+        
+        // Добавляем имя получателя если есть (транслитерированное)
+        if (orderData.recipient_name && orderData.recipient_name.trim()) {
+          var cleanRecipientName = transliterate(orderData.recipient_name)
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '') // Оставляем только латинские буквы, цифры, пробелы и дефисы
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+            
+          if (cleanRecipientName) {
+            parts.push(cleanRecipientName);
+          }
+        }
+        
+        // Если нет имени получателя, добавляем номер заказа
+        if (!orderData.recipient_name && orderData.order_id) {
+          parts.push(orderData.order_id.toString());
+        }
+        
+        // Собираем slug
+        var slug = parts.join('-');
+        
+        // Ограничиваем длину (80 символов максимум)
+        if (slug.length > 80) {
+          slug = slug.substring(0, 80).replace(/-[^-]*$/, ''); // Обрезаем по последнему дефису
+        }
+        
+        console.log('Generated slug from order data:', slug);
+        return slug || null;
+        
+      } catch (e) {
+        console.error('Ошибка генерации slug:', e);
+        return null;
+      }
+    }
+    
+    // Автозаполнение полей для нового смайла
+    function autoFillFieldsForNewSmile(orderData) {
+      // Проверяем что мы на странице /admin/smiles/new
+      var isNewSmilePage = window.location.pathname.includes('/admin/smiles/new');
+      if (!isNewSmilePage) {
+        console.log('Не страница new - автозаполнение пропущено');
+        return;
+      }
+      
+      console.log('Автозаполнение полей на основе данных заказа:', orderData);
+      
+      var hasRecipientName = orderData.recipient_name && orderData.recipient_name.trim() !== '';
+      var hasCustomerName = orderData.customer_name && orderData.customer_name.trim() !== '';
+      var mainProductName = orderData.main_product_name || 'Букет';
+      var orderDate = orderData.order_date || new Date().toLocaleDateString('ru-RU');
+      var orderId = orderData.order_id;
+      
+      // Поле H1 (в любом случае при наличии номера заказа)
+      var titleField = document.getElementById('smile_title');
+      if (titleField && (!titleField.value || titleField.value.trim() === '')) {
+        titleField.value = 'Букет «%main_product_name%», заказ № %order_eight_digit_id%';
+        console.log('Заполнено поле H1:', titleField.value);
+      }
+      
+      // Поле Title (SEO НАСТРОЙКИ)
+      var seoTitleField = document.getElementById('smile_seo_attributes_title');
+      if (seoTitleField && (!seoTitleField.value || seoTitleField.value.trim() === '')) {
+        if (hasRecipientName) {
+          seoTitleField.value = '%recipient_name% с букетом «%main_product_name%» – фото доставки от %date_smile%';
+        } else {
+          seoTitleField.value = 'Фото доставки букета «%main_product_name%», заказ № %order_eight_digit_id% от %date_smile%';
+        }
+        console.log('Заполнено поле SEO Title:', seoTitleField.value);
+      }
+      
+      // Поле Description (SEO НАСТРОЙКИ)
+      var seoDescField = document.getElementById('smile_seo_attributes_description');
+      if (seoDescField && (!seoDescField.value || seoDescField.value.trim() === '')) {
+        if (hasCustomerName) {
+          seoDescField.value = 'Фото доставки от клиента %customer_name% от %date_smile% - впечатления о букете «%main_product_name%». Узнайте, почему клиент остался доволен.';
+        } else {
+          seoDescField.value = 'Заказ № %order_eight_digit_id% от %date_smile% - фото доставки букета «%main_product_name%»';
+        }
+        console.log('Заполнено поле SEO Description:', seoDescField.value);
+      }
+      
+      // Поле Og title (SEO НАСТРОЙКИ)
+      var ogTitleField = document.getElementById('smile_seo_attributes_og_title');
+      if (ogTitleField && (!ogTitleField.value || ogTitleField.value.trim() === '')) {
+        var seoTitleValue = document.getElementById('smile_seo_attributes_title').value;
+        if (seoTitleValue && seoTitleValue.trim() !== '') {
+          ogTitleField.value = seoTitleValue;
+          console.log('Заполнено поле OG Title:', ogTitleField.value);
+        }
+      }
+      
+      // Поле Twitter title (SEO НАСТРОЙКИ)
+      var twitterTitleField = document.getElementById('smile_seo_attributes_twitter_title');
+      if (twitterTitleField && (!twitterTitleField.value || twitterTitleField.value.trim() === '')) {
+        var seoTitleValue = document.getElementById('smile_seo_attributes_title').value;
+        if (seoTitleValue && seoTitleValue.trim() !== '') {
+          twitterTitleField.value = seoTitleValue;
+          console.log('Заполнено поле Twitter Title:', twitterTitleField.value);
+        }
+      }
+      
+      // Поле Og description (SEO НАСТРОЙКИ)
+      var ogDescField = document.getElementById('smile_seo_attributes_og_description');
+      if (ogDescField && (!ogDescField.value || ogDescField.value.trim() === '')) {
+        var seoDescValue = document.getElementById('smile_seo_attributes_description').value;
+        if (seoDescValue && seoDescValue.trim() !== '') {
+          ogDescField.value = seoDescValue;
+          console.log('Заполнено поле OG Description:', ogDescField.value);
+        }
+      }
+      
+      // Поле Twitter description (SEO НАСТРОЙКИ)
+      var twitterDescField = document.getElementById('smile_seo_attributes_twitter_description');
+      if (twitterDescField && (!twitterDescField.value || twitterDescField.value.trim() === '')) {
+        var seoDescValue = document.getElementById('smile_seo_attributes_description').value;
+        if (seoDescValue && seoDescValue.trim() !== '') {
+          twitterDescField.value = seoDescValue;
+          console.log('Заполнено поле Twitter Description:', twitterDescField.value);
+        }
+      }
+      
+      // Поле Alt
+      var altField = document.getElementById('smile_alt');
+      if (altField && (!altField.value || altField.value.trim() === '')) {
+        if (hasCustomerName) {
+          altField.value = 'Фото букета «%main_product_name%» от клиента %customer_name%';
+        } else {
+          altField.value = 'Фото букета «%main_product_name%», заказ № %order_eight_digit_id%';
+        }
+        console.log('Заполнено поле Alt:', altField.value);
+      }
+      
+      // Генерация slug на основе данных заказа
+      var slugField = document.getElementById('smile_slug');
+      if (slugField && (!slugField.value || slugField.value.trim() === '')) {
+        var slug = generateSlugFromOrder(orderData);
+        if (slug) {
+          slugField.value = slug;
+          console.log('Заполнено поле Slug:', slugField.value);
+        }
+      }
+      
+      console.log('Автозаполнение завершено (включая OG и Twitter поля)');
+    }
+    
+    // Показать ошибку
+    function showError(message) {
+      console.log('Ошибка:', message);
+      hideOrderInfo();
+      orderErrorContainer.innerHTML = '<strong>Ошибка:</strong> ' + message;
+      orderErrorContainer.style.display = 'block';
+    }
+    
+    // Скрыть ошибку
+    function hideError() {
+      orderErrorContainer.style.display = 'none';
+    }
+    
+    // Скрыть информацию о заказе
+    function hideOrderInfo() {
+      orderInfoContainer.style.display = 'none';
+      selectedProductId = null;
+      
+      // Очищаем скрытое поле
+      var hiddenField = document.getElementById('smile_order_products_base_id');
+      if (hiddenField) {
+        hiddenField.value = '';
+        console.log('Очищено скрытое поле order_products_base_id');
+      }
+    }
+    
+    // Обработчик события потери фокуса
+    orderIdField.addEventListener('blur', function() {
+      var orderId = this.value.trim();
+      
+      if (orderId === '') {
+        hideOrderInfo();
+        hideError();
+        return;
+      }
+      
+      fetchOrderProducts(orderId);
+    });
+    
+    // При загрузке страницы, если номер заказа уже заполнен
+    if (orderIdField.value.trim()) {
+      fetchOrderProducts(orderIdField.value.trim());
+    } else {
+      // Если номер заказа пустой, очищаем скрытое поле
+      var hiddenField = document.getElementById('smile_order_products_base_id');
+      if (hiddenField) {
+        hiddenField.value = '';
+      }
+    }
+    
+    console.log('Интерактивный загрузчик товаров заказа инициализирован');
+  })();
