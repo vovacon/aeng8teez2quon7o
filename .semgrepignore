@@ -1,0 +1,12 @@
+# Semgrep scanner exclusions
++/
++/*
++/**/*
+test_*
+*_test.*
+*.bak
+*.tmp
+.git/
+vendor/
+tmp/
+log/

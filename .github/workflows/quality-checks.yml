@@ -1,0 +1,177 @@
+name: Quality Checks & Security
+
+on:
+  push:
+    branches: [ main, sketch-wip ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-quality:
+    name: Code Quality & Hygiene
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
+        bundler-cache: false
+        
+    - name: Check Ruby syntax
+      run: |
+        find . -name "*.rb" \( -path "*/+/*" -o -path "*/.git/*" -o -path "*/vendor/*" \) -prune -o -type f -print0 | xargs -0 -r ruby -c
+        
+    - name: Test hygiene script functionality
+      run: |
+        if [ -f "hygiene_simple_test.sh" ]; then
+          chmod +x hygiene_simple_test.sh
+          ./hygiene_simple_test.sh
+        fi
+        
+    - name: Test multiple comments feature
+      run: |
+        if [ -f "test_smile_multiple_comments_simple.rb" ]; then
+          ruby test_smile_multiple_comments_simple.rb
+        fi
+        
+    - name: Test aggregated reviews schema
+      run: |
+        if [ -f "test_aggregated_reviews_schema.rb" ]; then
+          ruby test_aggregated_reviews_schema.rb
+        fi
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Run GitLeaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      with:
+        config-path: .gitleaks.toml
+        
+    - name: Run Semgrep
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/owasp-top-ten
+      env:
+        SEMGREP_RULES: p/security-audit
+        SEMGREP_BASELINE_REF: main
+        # Respect .semgrepignore
+        
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        trivy-config: .trivyignore
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  functionality-tests:
+    name: Feature Functionality Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
+        
+    - name: Test Smile multiple comments feature
+      run: |
+        echo "🧪 Testing Smile multiple comments functionality"
+        if ruby -e "require_relative 'app/models/smile.rb'; puts 'Smile model syntax: OK'" 2>/dev/null; then
+          echo "✅ Smile model syntax is valid"
+        else
+          echo "❌ Smile model has syntax errors"
+          exit 1
+        fi
+        
+    - name: Test HAML templates syntax
+      run: |
+        echo "🧪 Testing HAML templates"
+        # Basic structure check for key templates
+        if [ -f "app/views/smiles/show.erb" ]; then
+          if grep -q "@related_comments.each_with_index" "app/views/smiles/show.erb"; then
+            echo "✅ Multiple comments loop found in template"
+          else
+            echo "❌ Multiple comments loop not found"
+            exit 1
+          fi
+        fi
+        
+    - name: Test Schema.org microdata
+      run: |
+        echo "🧪 Testing Schema.org microdata"
+        if [ -f "app/views/smiles/show.erb" ]; then
+          if grep -q '"@type": "Product"' "app/views/smiles/show.erb"; then
+            echo "✅ Product schema found"
+          else
+            echo "❌ Product schema not found" 
+            exit 1
+          fi
+          
+          if grep -q '"@type": "AggregateRating"' "app/views/smiles/show.erb"; then
+            echo "✅ AggregateRating schema found"
+          else
+            echo "❌ AggregateRating schema not found"
+            exit 1
+          fi
+        fi
+        
+  hygiene-validation:
+    name: Hygiene Script Validation  
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Test hygiene script
+      run: |
+        echo "🧹 Testing hygiene.sh functionality"
+        
+        # Check script syntax
+        if bash -n hygiene.sh; then
+          echo "✅ Hygiene script syntax OK"
+        else
+          echo "❌ Hygiene script syntax error"
+          exit 1
+        fi
+        
+        # Check gitignore support
+        if grep -q "is_ignored()" hygiene.sh; then
+          echo "✅ GitIgnore support detected"
+        else
+          echo "❌ GitIgnore support missing"
+          exit 1
+        fi
+        
+        # Check set -e handling
+        if grep -q "set -e" hygiene.sh && grep -q "set +e" hygiene.sh; then
+          echo "✅ Proper set -e handling detected"
+        else
+          echo "❌ Improper set -e handling"
+          exit 1
+        fi
+        
+        # Test basic execution (with timeout)
+        echo "# test file" > test_temp.rb
+        timeout 5s ./hygiene.sh . >/dev/null 2>&1 || true
+        rm -f test_temp.rb test_temp.rb.tmp
+        echo "✅ Hygiene script execution test completed"

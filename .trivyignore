@@ -1,0 +1,8 @@
+# Trivy scanner exclusions
+# Skip auxiliary directory with test data
++/
++/*
+test_*
+*_test.*
+*.bak
+*.tmp
