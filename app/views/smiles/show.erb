@@ -68,23 +68,27 @@ end %>
 
 <%
   # Микроразметка Review - только при наличии связанного комментария
-  comment = @post.related_comment
+  @related_comment = @post.related_comment
+  # Debug info
+  puts "DEBUG: Smile #{@post.id}, order_eight_digit_id: #{@post.order_eight_digit_id}"
+  puts "DEBUG: Related comment found: #{@related_comment ? @related_comment.id : 'none'}"
+  puts "DEBUG: has_review_comment?: #{@post.has_review_comment?}"
 %>
 
-<% if @post.has_review_comment? %>
+<% if @post.has_review_comment? && @related_comment %>
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Review",
     "author": {
       "@type": "Person",
-      "name": "<%=comment.name.present? ? comment.name : @post.customer_name%>"
+      "name": "<%=@related_comment.name.present? ? @related_comment.name : @post.customer_name%>"
     },
-    "datePublished": "<%=(comment.created_at || @post.created_at).strftime('%Y-%m-%d')%>",
-    "reviewBody": "<%=comment.body%>",
+    "datePublished": "<%=(@related_comment.created_at || @post.created_at).strftime('%Y-%m-%d')%>",
+    "reviewBody": "<%=h(@related_comment.body)%>",
     "reviewRating": {
       "@type": "Rating",
-      "ratingValue": "<%=comment.rating || @post.rating%>",
+      "ratingValue": "<%=@related_comment.rating || @post.rating || 5%>",
       "bestRating": "5"
     },
     "itemReviewed": {
@@ -311,12 +315,11 @@ end %>
     </table>
     
     <!-- Блок с отзывом клиента -->
-    <% if @post.has_review_comment? %>
+    <% if @post.has_review_comment? && @related_comment %>
       <%
-        review_comment = @post.related_comment
-        comment_author = review_comment.name.present? ? review_comment.name : (@post.customer_name || 'Клиент')
-        comment_date = review_comment.date || review_comment.created_at
-        comment_rating = review_comment.rating || @post.rating || 5
+        comment_author = @related_comment.name.present? ? @related_comment.name : (@post.customer_name || 'Клиент')
+        comment_date = @related_comment.date || @related_comment.created_at
+        comment_rating = @related_comment.rating || @post.rating || 5
       %>
       <div style="margin: 32px 0; padding: 24px; background: #f9f9f9; border-left: 4px solid #4CAF50; border-radius: 4px;">
         <h3 style="margin: 0 0 16px 0; color: #2c3e50; font-size: 18px;">💬 Отзыв клиента</h3>
@@ -339,14 +342,14 @@ end %>
           <% end %>
         </div>
         
-        <% if review_comment.title && review_comment.title.present? %>
+        <% if @related_comment.title && @related_comment.title.present? %>
           <h4 style="margin: 0 0 12px 0; color: #34495e; font-size: 16px; font-weight: 600;">
-            <%= h(review_comment.title) %>
+            <%= h(@related_comment.title) %>
           </h4>
         <% end %>
         
         <div style="color: #2c3e50; line-height: 1.6; font-size: 15px;">
-          <%= h(review_comment.body).gsub("\n", "<br>").html_safe %>
+          <%= h(@related_comment.body).gsub("\n", "<br>").html_safe %>
         </div>
         
         <% if @post.order_eight_digit_id %>

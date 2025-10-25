@@ -1,4 +1,6 @@
 # encoding: utf-8
+require_relative '../helpers/common.rb'
+
 class Smile < ActiveRecord::Base
 	include ActiveModel::Validations
 
@@ -232,8 +234,15 @@ class Smile < ActiveRecord::Base
     
     begin
       if defined?(Comment)
-        # Получаем только опубликованные комментарии
-        Comment.published.find_by_order_eight_digit_id(order_eight_digit_id)
+        # Используем where вместо find_by для корректной работы с BIT полями
+        comment = Comment.where(order_eight_digit_id: order_eight_digit_id).first
+        
+        # Проверяем, что комментарий опубликован, используя local helper
+        if comment && convert_bit_to_bool(comment.published)
+          comment
+        else
+          nil
+        end
       end
     rescue => e
       Rails.logger.error "Error fetching comment for smile #{id}: #{e.message}" if defined?(Rails)
@@ -249,8 +258,33 @@ class Smile < ActiveRecord::Base
   
   # Helper метод для проверки статуса публикации
   def published?
-    # Используем проверенный helper из common.rb
-    bit_field_to_bool(published)
+    # Используем local helper
+    convert_bit_to_bool(published)
+  end
+  
+  private
+  
+  # Локальный helper для обработки MySQL BIT полей
+  def convert_bit_to_bool(value)
+    case value
+    when nil, false
+      false
+    when true, 1
+      true
+    when String
+      # MySQL BIT поле может возвращать строку с битовыми данными
+      return true if value == '1'
+      return true if value.bytes.first == 1 # бинарная единица
+      false
+    when Integer
+      value == 1
+    else
+      # Любое другое значение - проверяем на "truthy"
+      !!value
+    end
+  rescue => e
+    # При ошибке - возвращаем false
+    false
   end
   
   # Метод для получения записи order_product по order_products_base_id
