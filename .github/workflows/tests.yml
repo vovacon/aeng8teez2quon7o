@@ -23,6 +23,19 @@ on:
   schedule:
     # Ежедневные проверки в 02:00 UTC
     - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Возможность ручного запуска
+    inputs:
+      test_type:
+        description: 'Тип тестов для запуска'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - security
+        - unit
+        - performance
 
 env:
   RUBY_VERSION: '2.7'
