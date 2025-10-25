@@ -5,7 +5,7 @@
 # rm -rf /srv/development_rozarioflowers.ru/{*,.*} && cp -r /srv/development_rozarioflowers.ru/. /srv/development_rozarioflowers.ru/
 # sudo nginx -t && sudo nginx -s reload && sudo systemctl status nginx
 
-set -e
+# set -e # Отключено для корректной работы git check-ignore
 
 DIR=${1:-.} # Путь к папке, которую нужно проверить (по умолчанию текущая папка)
 
