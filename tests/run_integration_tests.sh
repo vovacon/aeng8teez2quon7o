@@ -21,7 +21,7 @@ else
   echo ""
 fi
 
-# Запускаем остальные тесты
+# Запускаем остальные тесты (включая новые)
 for test_file in integration/test*.rb; do
   # Пропускаем базовый тест (он уже выполнен)
   if [[ "$test_file" == "integration/test_basic_models.rb" ]]; then
