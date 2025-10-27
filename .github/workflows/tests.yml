@@ -291,8 +291,12 @@ jobs:
         echo "  - CI Integration: 10 тестов, 23 assertions"
         echo "  - Schema Helper: 15 тестов, 75 assertions"
         echo "  - FAQ Schema: 11 тестов, 125 assertions"
-        echo "  - Smile Products: 11 тестов, 45 assertions (включая интеграцию с комментариями)"
-        echo "  - Итого: 47 тестов, 268 assertions"
+        echo "  - Smile Products: 7 тестов, 45 assertions"
+        echo "  - Smile Multiple Comments: 12 тестов, 65 assertions (НОВЫЕ)"
+        echo "  - Smile Aggregated Schema: 10 тестов, 55 assertions (НОВЫЕ)"
+        echo "  - Smile Admin Functionality: 15 тестов, 80 assertions (НОВЫЕ)"
+        echo "  - CI Improvements: 11 тестов, 45 assertions (НОВЫЕ)"
+        echo "  - Итого: 91 тест, 513+ assertions"
         
     - name: 📤 Загрузка отчётов тестов
       uses: actions/upload-artifact@v4
@@ -526,7 +530,7 @@ jobs:
         fi
         
         if [[ "${{ needs.unit-tests.result }}" == "success" ]]; then
-          echo "- 🧪 Unit тесты (33 теста: SEO Schema + FAQ + Smile Products)"
+          echo "- 🧪 Unit тесты (91 тест: Schema + FAQ + Smile Products + Multiple Comments + Aggregated Schema + Admin + CI)"
         fi
         
         if [[ "${{ needs.performance-check.result }}" == "success" ]]; then
