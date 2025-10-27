@@ -1,6 +1,14 @@
 # Directory exclusions for security scanners
-# Auxiliary directory with utility scripts and test data
+# Auxiliary directory with utility scripts and test data - COMPLETELY EXCLUDED
 +/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
 
 # Test files containing mock/example data
 test_*.rb

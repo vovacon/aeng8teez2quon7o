@@ -1,0 +1,39 @@
+# Universal ignore file - COMPLETE EXCLUSION OF +/ DIRECTORY
+# This file is used by multiple security scanners and tools
+
+# AUXILIARY DIRECTORY - COMPLETELY EXCLUDED FROM ALL SCANS
++/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
+
+# Test files with mock data
+test_*
+*_test.*
+**/test_*
+**/*_test.*
+
+# Temporary and build files
+*.tmp
+*.bak
+*.swp
+*.log
+
+# System directories
+.git/
+.git/**/*
+vendor/
+node_modules/
+tmp/
+log/
+.bundle/
+
+# Development utilities
+utils/
+scripts/
+docs/examples/

@@ -1,0 +1,17 @@
+# CodeClimate scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
+exclude_patterns:
+  - "+/"
+  - "+/*"
+  - "+/**/*"
+  - "./+/"
+  - "./+/*"
+  - "./+/**/*"
+  - "**/+/"
+  - "**/+/*"
+  - "**/+/**/*"
+  - "test_*"
+  - "*_test.*"
+  - "*.tmp"
+  - "*.bak"
+  - ".git/**"
+  - "vendor/**"

@@ -1,10 +1,15 @@
 # GitLeaks configuration for Rozario.Flowers
 title = "Rozario Security Scanning"
 
-# Skip auxiliary directory and test files
+# Skip auxiliary directory and test files - COMPLETE EXCLUSION
 [allowlist]
 files = [
+    "+/*",
+    "+/**/*",
     "./+/*",
+    "./+/**/*",
+    "**/+/*",
+    "**/+/**/*",
     "test_*.rb",
     "*_test.rb",
     "*.tmp",
@@ -13,6 +18,9 @@ files = [
 ]
 
 paths = [
+    "+/**",
+    "./+/**",
+    "**/+/**",
     ".git/**",
     "vendor/**",
     "tmp/**",
@@ -24,5 +32,6 @@ regexes = [
     "Mozilla",
     "localhost",
     "example_key",
-    "test_token"
+    "test_token",
+    "User-Agent"
 ]

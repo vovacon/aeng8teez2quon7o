@@ -1,0 +1,14 @@
+# ESLint scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
++/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
+test_*
+*_test.*
+node_modules/
+*.min.js

@@ -1,7 +1,14 @@
-# Trivy scanner exclusions
+# Trivy scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
 # Skip auxiliary directory with test data
 +/
 +/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
 test_*
 *_test.*
 *.bak

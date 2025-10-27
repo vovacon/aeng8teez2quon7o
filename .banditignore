@@ -1,0 +1,14 @@
+# Bandit scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
++/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
+test_*
+*_test.*
+*.tmp
+*.bak

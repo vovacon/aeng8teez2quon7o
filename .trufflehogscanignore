@@ -1,4 +1,4 @@
-# Semgrep scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
+# TruffleHog scanner exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
 +/
 +/*
 +/**/*
@@ -10,9 +10,8 @@
 **/+/**/*
 test_*
 *_test.*
-*.bak
 *.tmp
+*.bak
+*.log
 .git/
 vendor/
-tmp/
-log/

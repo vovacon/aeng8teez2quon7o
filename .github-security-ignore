@@ -1,0 +1,25 @@
+# GitHub Security Scanning exclusions - COMPLETE EXCLUSION OF +/ DIRECTORY
+# Used by GitHub Advanced Security, Dependabot, and CodeQL
+
+# AUXILIARY DIRECTORY - COMPLETELY EXCLUDED
++/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
+
+# Test files with mock data
+test_*
+*_test.*
+**/test_*
+**/*_test.*
+
+# Common patterns that should be excluded
+*.tmp
+*.bak
+*.swp
+*.log

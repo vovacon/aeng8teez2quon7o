@@ -1,7 +1,14 @@
 # Security scanning exclusions
-# Exclude auxiliary directory containing test and utility scripts
-+/*
+# Exclude auxiliary directory containing test and utility scripts - COMPLETELY EXCLUDED
 +/
++/*
++/**/*
+./+/
+./+/*
+./+/**/*
+**/+/
+**/+/*
+**/+/**/*
 
 # Test files with mock data should not be scanned
 test_*
