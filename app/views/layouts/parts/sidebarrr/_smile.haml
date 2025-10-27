@@ -5,7 +5,7 @@
   .square-image-container
     .background-blur{style: "background-image: url(#{imglnk})"}
     %img.main-image{src: imglnk, :itemprop => 'contentUrl', alt: (@post.alt ? @post.alt.force_encoding('UTF-8') : ''), loading: "lazy"}
-  %meta{:content => "Улыбки получателей #{fname}".force_encoding('UTF-8'), :itemprop => 'name'}/
+  %meta{:content => (@post.title ? "Улыбки получателей: #{@post.title}" : "Улыбки получателей").force_encoding('UTF-8'), :itemprop => 'name'}/
   %meta{:content => "Фотография счастливой обладательницы красивого букета".force_encoding('UTF-8'), :itemprop => 'description'}/
   %meta{:content => "2017-09-25", :itemprop => 'datePublished'}/
   %meta{:content => "256", :itemprop => 'width'}/
