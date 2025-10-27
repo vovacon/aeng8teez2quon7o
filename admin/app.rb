@@ -3,7 +3,8 @@ module Rozario
   class Admin < Padrino::Application
     puts 'WTF?'
     use ActiveRecord::ConnectionAdapters::ConnectionManagement
-    use Rack::MethodOverride  # Add support for DELETE/PUT methods via forms
+    # TODO: Remove when upgrading to Padrino >= 0.12.0 (has built-in MethodOverride support)
+    use Rack::MethodOverride  # Add support for DELETE/PUT methods via forms for Padrino 0.11.1
     register Padrino::Rendering
     register Padrino::Mailer
     register Padrino::Helpers

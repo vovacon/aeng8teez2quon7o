@@ -30,7 +30,8 @@
                   %h3.popover-title=pat(:delete_selected_title)
                   .popover-content
                     -form_tag url(:smiles, :destroy_many), :method => :delete do
-                      =hidden_field_tag :smile_ids, :'data-delete-many-ids' => true
+                      -# Fixed for compatibility - was: =hidden_field_tag :smile_ids, :'data-delete-many-ids' => true
+                      %input{type: 'hidden', name: 'smile_ids', 'data-delete-many-ids': true}
                       =submit_tag pat(:delete), :class =>'list-menu-popover-delete-selected-btn btn btn-danger btn-small'
                       .btn.btn-small.cancel=pat(:cancel)
         %th.header= :id

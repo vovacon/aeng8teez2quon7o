@@ -7,3 +7,11 @@
 .tabs-content
   -form_for :smile, url(:smiles, :update, :id => @smile.id), :method => :put, multipart: true, :class => 'form-horizontal' do |f|
     =partial 'smiles/form', :locals => { :f => f }
+  
+  -# Кнопка удаления вне основной формы
+  - if @smile && @smile.id
+    .form-actions{style: 'border-top: none; padding-top: 0;'}
+      -# Используем тот же подход, что и в работающем списке /admin/smiles
+      -# NOTE: При переходе на новые версии Padrino можно убрать Rack::MethodOverride
+      -form_tag url(:smiles, :destroy, :id => @smile.id), :method => :delete, :style => 'display: inline;', :onsubmit => "return confirm('Вы уверены, что хотите удалить этот отзыв?')" do
+        =submit_tag 'Удалить', :class => 'btn btn-danger'
