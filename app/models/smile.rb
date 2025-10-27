@@ -31,6 +31,7 @@ class Smile < ActiveRecord::Base
     :only_integer => true, 
     :greater_than => 0,
     :allow_blank => true
+  before_save :disable_seo_indexing_if_unpublished
 
 	mount_uploader :images, UploaderSmile
 
@@ -354,5 +355,17 @@ end
     
     unless Order.exists?(:eight_digit_id => order_eight_digit_id)
       errors.add(:order_eight_digit_id, "Заказ с номером #{order_eight_digit_id} не найден")
+    end
+  end
+  
+  # Колбек для автоматического отключения SEO индексации
+  def disable_seo_indexing_if_unpublished
+    # Проверяем, что published меняется на false/0 и есть связь с SEO
+    if changed.include?('published') && !convert_bit_to_bool(published) && seo.present?
+      # Отключаем индексацию (поле index в 0), если оно было включено
+      if convert_bit_to_bool(seo.index)
+        seo.index = 0
+        seo.save
+      end
     end
   end

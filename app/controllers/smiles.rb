@@ -73,6 +73,10 @@ Rozario::App.controllers :smiles do
     # Load SEO data and generate custom title for smiles pages
     @smile = Smile.published.find_by_id(@id)
     @post = @smile  # For template compatibility
+    
+    # Return 404 if smile not found or unpublished
+    halt 404 unless @smile
+    
     get_seo_data('smiles', @smile.seo_id) if @smile
     
     # Set canonical URL for smiles pages
@@ -138,7 +142,11 @@ Rozario::App.controllers :smiles do
     @dsc = DscntClass.new.some_method
     smile = Smile.published.find_by_slug(params[:slug])
     @id = smile.id if smile.present?
+    # Fallback для старых ссылок, но только среди опубликованных
     @id = Smile.published.find_by_id(params[:slug]).id if @id.nil?
+    
+    # Return 404 if no published smile found
+    halt 404 unless @id
     @posts = Smile.published.order('created_at DESC')
     i = 0
     for item in @posts
@@ -156,6 +164,10 @@ Rozario::App.controllers :smiles do
     end
     @smile = Smile.published.find_by_id(@id)
     @post = @smile  # For template compatibility
+    
+    # Return 404 if smile not found or unpublished
+    halt 404 unless @smile
+    
     "https://" + request.env['HTTP_HOST'] +  '/smiles/' + @smile.slug if @smile && @smile.slug
     get_seo_data('smiles', @smile.seo_id) if @smile
     
