@@ -11,14 +11,14 @@ Rozario::Admin.controllers :smiles do
       render 'smiles/index'
     end
 
-    @smile = Smile.order('sidebar DESC, created_at DESC').paginate(:page => params[:page], :per_page => 20)
+    @smile = Smile.order('sidebar DESC, updated_at DESC').paginate(:page => params[:page], :per_page => 20)
     render 'smiles/index'
   end
   
   # Новая вкладка для неопубликованных смайлов
   get :unpublished do
     @title = "Unpublished Smiles"
-    @smile = Smile.where(published: 0).order('created_at DESC').paginate(:page => params[:page], :per_page => 20)
+    @smile = Smile.where(published: 0).order('updated_at DESC').paginate(:page => params[:page], :per_page => 20)
     @filter_type = 'unpublished'
     render 'smiles/index'
   end
@@ -64,12 +64,13 @@ Rozario::Admin.controllers :smiles do
     end
     @smile[:json_order] = hash.to_json
     if @smile.save
+      # Обновляем updated_at после создания
+      @smile.update_attribute(:updated_at, Time.current)
+      
       # Для BIT поля может потребоваться прямой SQL запрос
       if allowed_params.has_key?('published')
         sql = "UPDATE smiles SET published = #{published_int} WHERE id = #{@smile.id}"
         ActiveRecord::Base.connection.execute(sql)
-        # Обновляем created_at для сортировки по последнему изменению
-        @smile.update_attribute(:created_at, Time.current)
         puts "DEBUG CREATE: executed direct SQL: #{sql}"
       end
       
@@ -145,12 +146,13 @@ Rozario::Admin.controllers :smiles do
     if @smile
       update_params = allowed_params
       if @smile.update_attributes(update_params)
+        # Обновляем updated_at после обновления
+        @smile.update_attribute(:updated_at, Time.current)
+        
         # Для BIT поля может потребоваться прямой SQL запрос
         if update_params.has_key?('published')
           sql = "UPDATE smiles SET published = #{published_int} WHERE id = #{@smile.id}"
           ActiveRecord::Base.connection.execute(sql)
-          # Обновляем created_at для сортировки по последнему изменению
-          @smile.update_attribute(:created_at, Time.current)
           puts "DEBUG UPDATE: executed direct SQL: #{sql}"
         end
         
@@ -294,7 +296,7 @@ Rozario::Admin.controllers :smiles do
     query = strip_tags(params[:query]).mb_chars.downcase
 
     if params[:query].length > 0
-      @smile = Smile.where("#{type} like ?", "%#{query}%").order('created_at DESC').paginate(:page => params[:page], :per_page => 20)
+      @smile = Smile.where("#{type} like ?", "%#{query}%").order('updated_at DESC').paginate(:page => params[:page], :per_page => 20)
       if @smile.first.nil?
         flash[:error] = "Ничего не найдено :("
         redirect back
@@ -303,7 +305,7 @@ Rozario::Admin.controllers :smiles do
         render 'smiles/index'
       end
     else
-      @smile = Smile.order('created_at DESC').paginate(:page => params[:page], :per_page => 20)
+      @smile = Smile.order('updated_at DESC').paginate(:page => params[:page], :per_page => 20)
       flash[:error] = "Введите запрос"
       render 'smiles/index'
     end

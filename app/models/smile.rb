@@ -3,6 +3,9 @@ require_relative '../helpers/common.rb'
 
 class Smile < ActiveRecord::Base
 	include ActiveModel::Validations
+  
+  # Явно включаем timestamps для корректной работы updated_at
+  self.record_timestamps = true
 
   belongs_to :seo, dependent: :destroy
   accepts_nested_attributes_for :seo, allow_destroy: true
