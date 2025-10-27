@@ -224,22 +224,33 @@ paths = [
   continue-on-error: true
 ```
 
-### Проблема 6: "File results.sarif does not exist"
+### Проблема 6: "File results.sarif does not exist" и Git revision ошибки
+
+**Симптомы:**
+```
+fatal: ambiguous argument 'commit1^..commit2': unknown revision or path not in the working tree
+ERROR: Unexpected exit code [1]
+```
 
 **Причина:**
-GitLeaks не создал SARIF файл из-за ошибок конфигурации или отсутствия находок.
+GitLeaks-action пытается сравнить коммиты в shallow clone, которые могут быть недоступны.
 
 **Решение:**
-Добавить проверку существования файла:
+1. Добавить `fetch-depth: 0` для полной истории:
 ```yaml
-- name: Check GitLeaks results
-  if: always()
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+```
+
+2. Или использовать прямое файловое сканирование:
+```yaml
+- name: Run GitLeaks filesystem scan
   run: |
-    if [ -f "results.sarif" ]; then
-      echo "✅ GitLeaks scan completed with results"
-    else
-      echo "⚠️  GitLeaks scan completed without SARIF output"
-    fi
+    wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+    tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
+    ./gitleaks detect --source . --config .gitleaks.toml --no-git
+  continue-on-error: true
 ```
 
 ### Проблема 7: "missing argument to repetition operator: `+`"
