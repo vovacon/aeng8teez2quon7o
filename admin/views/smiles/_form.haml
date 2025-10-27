@@ -130,6 +130,10 @@
   &nbsp;
   =f.submit pat(:save_and_continue), :class => 'btn btn-info', :name => 'save_and_continue'
   &nbsp;
+  -# Кнопка удаления (только для существующих записей)
+  - if @smile && @smile.persisted?
+    %button.btn.btn-danger{type: 'button', onclick: 'confirmDelete(); return false;'} Удалить
+    &nbsp;
   =link_to pat(:cancel), url(:smiles, :index), :class => 'btn'
 
 :javascript
