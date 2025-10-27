@@ -4,11 +4,17 @@
     <%#<h2></h2>%>
     <hr />
     <p>
-      <% ext = File.extname(post.images.current_path) %>
-      <% base = File.basename(post.images.current_path, ".*").to_s %>
-      <% fname = base + '_tn' + ext %>
-      <% File.file?(fname) ? fname : fname = File.basename(post.images.current_path) %>
-      <a href="/smiles/<%=post.id%>/"><img class="show-smile" type="button" src="<%='/uploads/smiles/' + fname %>" /></a>
+      <% image_path = get_smile_image_path(post) %>
+      <% if image_path %>
+        <a href="/smiles/<%=post.id%>/"><img class="show-smile" type="button" src="<%=image_path%>" /></a>
+      <% else %>
+        <!-- Отзыв без изображения -->
+        <a href="/smiles/<%=post.id%>/" class="no-image-smile">
+          <div class="smile-no-image">
+            <span class="no-image-text">📝 Отзыв</span>
+          </div>
+        </a>
+      <% end %>
     </p>
     <p >
       <a class="btn rm" href="/smiles/<%=post.id%>/">Подробнее</a>

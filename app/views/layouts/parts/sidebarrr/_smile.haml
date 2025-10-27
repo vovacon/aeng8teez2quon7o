@@ -1,8 +1,5 @@
 - # encoding: utf-8
-- ext = File.extname(@post.images.current_path); base = File.basename(@post.images.current_path, ".*").to_s
-- fname = base + '_tn' + ext
-- File.file?('/var/www/rozarioflowers.ru/rozario/public/uploads/smiles/' + fname) ? fname : fname = File.basename(@post.images.current_path)
-- imglnk = '/uploads/smiles/' + fname
+- imglnk = get_smile_image_path(@post) || '/images/no-smile-placeholder.png'
 
 %a{href: File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s), itemprop: "url", rel: 'nofollow', class: 'smile-container'}
   .square-image-container

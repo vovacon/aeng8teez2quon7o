@@ -40,16 +40,22 @@
       <%#<h2>=post.title</h2>%>
       <hr />
       <p itemscope itemtype='http://schema.org/ImageObject'>
-        <% ext = File.extname(post.images.current_path) %>
-        <% base = File.basename(post.images.current_path, ".*").to_s %>
-        <% fname = base + '_tn' + ext %>
-        <% File.file?(fname) ? fname : fname = File.basename(post.images.current_path) %>
         <meta itemprop="name" content='<%=post.title%>'>
         <meta itemprop="description" content='<%=post.title%>'>
-        <a href="<%=linkkk%>" itemprop='contentUrl'><img class="show-smile" alt="<%=process_smile_alt(post)%>" type="button" src="<%='/uploads/smiles/'+fname%>" /></a>
-        <meta itemprop="width" content='256'>
-        <meta itemprop="height" content='256'>
         <meta itemprop="author" content='Rozarioflowers'>
+        <% image_path = get_smile_image_path(post) %>
+        <% if image_path %>
+          <a href="<%=linkkk%>" itemprop='contentUrl'><img class="show-smile" alt="<%=process_smile_alt(post)%>" type="button" src="<%=image_path%>" /></a>
+          <meta itemprop="width" content='256'>
+          <meta itemprop="height" content='256'>
+        <% else %>
+          <!-- Отзыв без изображения -->
+          <a href="<%=linkkk%>" class="no-image-smile">
+            <div class="smile-no-image">
+              <span class="no-image-text">📝 Отзыв</span>
+            </div>
+          </a>
+        <% end %>
       </p>
       <p >
         <a class="btn rm" href="<%=linkkk%>">Подробнее</a>

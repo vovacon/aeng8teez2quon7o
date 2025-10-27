@@ -29,37 +29,40 @@
           - c = Smile.last.id
         .col-md-3.col-sm-4.col-xs-6{ style: "padding:0" }
           - @post = Smile.find_by_id(a)
-          - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
-          %a{href: link, rel: 'nofollow'}
-            - ext = File.extname(@post.images.current_path)
-            - base = File.basename(@post.images.current_path, ".*").to_s
-            - fname = base + '_tn' + ext
-            - File.file?('/var/www/rozarioflowers.ru/rozario/public/uploads/smiles/' + fname) ? fname : fname = File.basename(@post.images.current_path)
-            - link1 = '/uploads/smiles/' + fname
-            %br
-            %img{ src: link1, style: imgstyle, alt: @post.alt, loading: "lazy" }
+          - if @post
+            - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
+            %a{href: link, rel: 'nofollow'}
+              - image_path = get_smile_image_path(@post)
+              - if image_path
+                %br
+                %img{ src: image_path, style: imgstyle, alt: @post.alt, loading: "lazy" }
+              - else
+                .smile-no-image-haml{ style: imgstyle + '; display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #666; font-size: 14px;' }
+                  📝 Отзыв
         .col-md-3.col-sm-4.col-xs-6{ style: "padding:0" }
           - @post = Smile.find_by_id(b)
-          - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
-          %a{href: link, rel: 'nofollow'}
-            - ext = File.extname(@post.images.current_path)
-            - base = File.basename(@post.images.current_path, ".*").to_s
-            - fname = base + '_tn' + ext
-            - File.file?('/var/www/rozarioflowers.ru/rozario/public/uploads/smiles/' + fname) ? fname : fname = File.basename(@post.images.current_path)
-            - link2 = '/uploads/smiles/' + fname
-            %br
-            %img{ src: link2, style: imgstyle, alt: @post.alt, loading: "lazy" }
+          - if @post
+            - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
+            %a{href: link, rel: 'nofollow'}
+              - image_path = get_smile_image_path(@post)
+              - if image_path
+                %br
+                %img{ src: image_path, style: imgstyle, alt: @post.alt, loading: "lazy" }
+              - else
+                .smile-no-image-haml{ style: imgstyle + '; display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #666; font-size: 14px;' }
+                  📝 Отзыв
         .col-md-3.col-sm-4.hidden-xs{ style: "padding:0" }
           - @post = Smile.find_by_id(c)
-          - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
-          %a{href: link, rel: 'nofollow'}
-            - ext = File.extname(@post.images.current_path)
-            - base = File.basename(@post.images.current_path, ".*").to_s
-            - fname = base + '_tn' + ext
-            - File.file?('/var/www/rozarioflowers.ru/rozario/public/uploads/smiles/' + fname) ? fname : fname = File.basename(@post.images.current_path)
-            - link3 = '/uploads/smiles/' + fname
-            %br
-            %img{ src: link3, style: imgstyle, alt: @post.alt, loading: "lazy" }
+          - if @post
+            - link = File.join('/smiles/', @post.slug.present? ?  @post.slug.to_s : @post.id.to_s)
+            %a{href: link, rel: 'nofollow'}
+              - image_path = get_smile_image_path(@post)
+              - if image_path
+                %br
+                %img{ src: image_path, style: imgstyle, alt: @post.alt, loading: "lazy" }
+              - else
+                .smile-no-image-haml{ style: imgstyle + '; display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #666; font-size: 14px;' }
+                  📝 Отзыв
       .row
         .col-md-12
           = link_to 'Показать все'.html_safe, host_url('/smiles/'), rel: 'nofollow'
