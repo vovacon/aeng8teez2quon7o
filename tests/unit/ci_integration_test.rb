@@ -47,8 +47,8 @@ class CiIntegrationTest < Minitest::Test
     ci_config = File.read(@ci_config_path, encoding: 'UTF-8')
     
     # Проверяем, что в CI указано правильное количество тестов
-    assert ci_config.include?('33 теста'.force_encoding('UTF-8')) || ci_config.include?('33 тестов'.force_encoding('UTF-8')), 
-      "CI должен отображать актуальное количество тестов: 33"
+    assert ci_config.include?('91 тест'.force_encoding('UTF-8')), 
+      "CI должен отображать актуальное количество тестов: 91"
     
     assert ci_config.include?('Smile Products'), "CI должен упоминать тесты Smile Products"
   end

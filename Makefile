@@ -72,9 +72,13 @@ stats:
 	@echo "  HAML файлов:    $(shell find . -name '*.haml' | wc -l)"
 	@echo "  ERB файлов:     $(shell find . -name '*.erb' | wc -l)"
 	@echo "  Unit тестов:    $(shell find tests/unit -name '*.rb' 2>/dev/null | wc -l)"
+	@echo "    - Schema тесты:  $(shell find tests/unit -name '*schema*.rb' 2>/dev/null | wc -l)"
+	@echo "    - Smile тесты:   $(shell find tests/unit -name 'smile_*.rb' 2>/dev/null | wc -l)"
+	@echo "    - CI тесты:      $(shell find tests/unit -name 'ci_*.rb' 2>/dev/null | wc -l)"
 	@echo "  Интегр. тестов: $(shell find tests/integration -name '*.rb' 2>/dev/null | wc -l)"
 	@echo "  UI тестов:      $(shell find tests/ui -name '*.html' 2>/dev/null | wc -l)"
 	@echo "  Архивных:       $(shell find tests/archive -name '*.rb' 2>/dev/null | wc -l)"
+	@echo "  Временных:      $(shell find . -maxdepth 1 -name 'test_*.rb' 2>/dev/null | wc -l) (подлежат удалению)"
 	@echo "  Служебных:      $(shell find ./+ -name '*' 2>/dev/null | wc -l) (не тестируется)"
 
 ## Запуск приложения в development режиме
