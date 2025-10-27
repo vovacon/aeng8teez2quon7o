@@ -40,9 +40,9 @@ Rozario::Admin.controllers :smiles do
     json_order = params[:smile][:order]
     smile_params = params[:smile]
     
-    # Разрешаем необходимые параметры, исключая date - оно будет автоматически установлено в NULL
+    # Разрешаем необходимые параметры, включая поле date для текстовой даты
     allowed_params = smile_params.select { |k, v| 
-      ['title', 'slug', 'body', 'images', 'rating', 'alt', 'smile_text', 'sidebar', 'order_eight_digit_id', 'order_products_base_id', 'seo_attributes', 'published'].include?(k) 
+      ['title', 'slug', 'body', 'images', 'rating', 'alt', 'smile_text', 'sidebar', 'order_eight_digit_id', 'order_products_base_id', 'seo_attributes', 'published', 'date'].include?(k) 
     }
     
     # Обработка BIT поля published для MySQL
@@ -52,9 +52,10 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG CREATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
+    puts "DEBUG CREATE: date field value: #{allowed_params['date'].inspect}"
     
-    # Автоматически устанавливаем date в NULL
-    allowed_params['date'] = nil
+    # Сохраняем поле date как есть (текстовое поле для произвольной даты)
+    # allowed_params['date'] уже содержит значение из формы
     
     hash = {}
     @smile = Smile.new(allowed_params)
@@ -117,9 +118,9 @@ Rozario::Admin.controllers :smiles do
     @smile = Smile.find(params[:id])
     smile_params = params[:smile]
     
-    # Разрешаем необходимые параметры, исключая date - оно будет автоматически установлено в NULL
+    # Разрешаем необходимые параметры, включая поле date для текстовой даты
     allowed_params = smile_params.select { |k, v| 
-      ['title', 'slug', 'body', 'images', 'rating', 'alt', 'smile_text', 'sidebar', 'order_eight_digit_id', 'order_products_base_id', 'seo_attributes', 'published'].include?(k) 
+      ['title', 'slug', 'body', 'images', 'rating', 'alt', 'smile_text', 'sidebar', 'order_eight_digit_id', 'order_products_base_id', 'seo_attributes', 'published', 'date'].include?(k) 
     }
     
     # Обработка BIT поля published для MySQL
@@ -129,9 +130,10 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG UPDATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
+    puts "DEBUG UPDATE: date field value: #{allowed_params['date'].inspect}"
     
-    # Автоматически устанавливаем date в NULL
-    allowed_params['date'] = nil
+    # Сохраняем поле date как есть (текстовое поле для произвольной даты)
+    # allowed_params['date'] уже содержит значение из формы
     
     hash = {}
     if json_order
