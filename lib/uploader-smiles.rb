@@ -69,13 +69,13 @@ class UploaderSmile < CarrierWave::Uploader::Base
   # Метод для создания квадратного изображения с размытым фоном
   def make_square_with_blur
     manipulate! do |img|
-      # Получаем размеры исходного изображения
-      width = img.columns
-      height = img.rows
+      # Получаем размеры исходного изображения и явно приводим к integer
+      width = img.columns.to_i
+      height = img.rows.to_i
       
       # Определяем большую и меньшую стороны
-      x = [width, height].max
-      y = [width, height].min
+      x = [width, height].max.to_i
+      y = [width, height].min.to_i
       
       # Проверяем, квадратное ли изображение
       if width == height
