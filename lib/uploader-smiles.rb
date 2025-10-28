@@ -84,6 +84,7 @@ class UploaderSmile < CarrierWave::Uploader::Base
       end
       
       puts "DEBUG UPLOADER: Обработка изображения #{width}x#{height} -> #{x}x#{x}"
+      puts "DEBUG UPLOADER: width.class=#{width.class}, height.class=#{height.class}, x.class=#{x.class}, y.class=#{y.class}, scale_factor=#{scale_factor}"
       
       # Сохраняем копию оригинального изображения для наложения
       original_for_overlay = img.dup
@@ -94,10 +95,12 @@ class UploaderSmile < CarrierWave::Uploader::Base
       
       if width > height
         # Пейзажная ориентация: увеличиваем по высоте
-        background_img = img.resize("#{(width * scale_factor).to_i}x#{x}!")
+        new_width = (width * scale_factor).to_i
+        background_img = img.resize("#{new_width}x#{x}!")
       else
         # Портретная ориентация: увеличиваем по ширине
-        background_img = img.resize("#{x}x#{(height * scale_factor).to_i}!")
+        new_height = (height * scale_factor).to_i
+        background_img = img.resize("#{x}x#{new_height}!")
       end
       
       # Обрезаем до квадрата по центру
