@@ -34,8 +34,7 @@ Rozario::App.controllers :sessions do
     if user_account = UserAccount.authenticate(params[:email], params[:password])
       set_current_account(user_account)
       
-      # Debug: log session state
-      puts "DEBUG AUTH: return_to=#{session[:return_to]}, auth_context=#{session[:auth_context]}, redirect_url=#{params[:redirect_url]}"
+
       
       # Priority: explicit redirect_url > stored return_to > smart default > profile
       if params[:redirect_url]
