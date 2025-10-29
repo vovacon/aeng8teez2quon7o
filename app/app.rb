@@ -1012,12 +1012,54 @@ module Rozario
         # Check exact matches first
         return true if private_paths.any? { |path| url.start_with?(path) }
         
-        # Check patterns
-        return true if url.match?(/^\/user_accounts\/profile/)
-        return true if url.match?(/^\/user_accounts\/edit/)
-        return true if url.match?(/^\/user_accounts\/payment/)
+        # Check patterns (using match for Ruby compatibility)
+        return true if url =~ /^\/user_accounts\/profile/
+        return true if url =~ /^\/user_accounts\/edit/
+        return true if url =~ /^\/user_accounts\/payment/
         
         false
+      end
+      
+      # Store the original page user came from before entering private area
+      def store_original_page(url = nil)
+        return unless url || request.referer  # Early return if no URL available
+        
+        url ||= request.referer
+        return if url.blank?
+        
+        begin
+          uri = URI.parse(url)
+          # Only store if it's from our domain and not a private area itself
+          if uri.relative? || (uri.host.nil? || (request.respond_to?(:host) && uri.host == request.host))
+            original_path = uri.relative? ? url : uri.path
+            # Don't store private area URLs as original pages
+            unless private_area_url?(original_path) || original_path.start_with?('/sessions/')
+              session[:original_page] = original_path
+              session[:original_page_time] = Time.now.to_i
+            end
+          end
+        rescue URI::InvalidURIError, NoMethodError => e
+          # Ignore invalid URLs or method errors (e.g., if request.host is not available)
+        end
+      end
+      
+      # Get the original page user came from before entering private area
+      def get_original_page
+        original_page = session[:original_page]
+        original_time = session[:original_page_time]
+        
+        # Check if stored page is still valid (not older than 1 hour)
+        if original_page && original_time && (Time.now.to_i - original_time) < 3600
+          original_page
+        else
+          nil
+        end
+      end
+      
+      # Clear stored original page
+      def clear_original_page
+        session.delete(:original_page)
+        session.delete(:original_page_time)
       end
     end
 
