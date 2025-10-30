@@ -282,6 +282,7 @@ jobs:
       run: |
         echo "⚙️ Тестируем логику отображения товаров..."
         ruby test_smile_logic.rb
+        ruby spec/admin_date_helpers_spec.rb
         
     - name: 📈 Отчёт о тестах
       if: always()

@@ -629,26 +629,12 @@
       
       // Поле даты (автоматическое заполнение из d2_date заказа)
       var dateField = document.getElementById('smile_date');
-      console.log('Поле date найдено:', dateField);
       
-      if (dateField) {
-        console.log('Текущее значение поля date:', dateField.value);
-        
-        if (!dateField.value || dateField.value.trim() === '') {
-          // Получаем d2_date из заказа через AJAX
-          var orderId = orderIdField.value.trim();
-          console.log('Номер заказа для заполнения даты:', orderId);
-          
-          if (orderId && orderId !== '') {
-            fetchOrderDateAndFill(orderId, dateField);
-          } else {
-            console.log('Номер заказа пустой, автозаполнение не выполняется');
-          }
-        } else {
-          console.log('Поле date уже заполнено, автозаполнение пропущено');
+      if (dateField && (!dateField.value || dateField.value.trim() === '')) {
+        var orderId = orderIdField.value.trim();
+        if (orderId && orderId !== '') {
+          fetchOrderDateAndFill(orderId, dateField);
         }
-      } else {
-        console.error('Поле date не найдено на странице!');
       }
       
       // Поле H1 (в любом случае при наличии номера заказа)
@@ -857,7 +843,6 @@
       // Автозаполнение поля даты
       var dateField = document.getElementById('smile_date');
       if (dateField && (!dateField.value || dateField.value.trim() === '')) {
-        console.log('Автозаполнение даты для заказа:', orderId);
         fetchOrderDateAndFill(orderId, dateField);
       }
       
@@ -893,31 +878,19 @@
     function fetchOrderDateAndFill(orderId, dateField) {
       if (!orderId || orderId === '') return;
       
-      console.log('Получение даты для заказа:', orderId);
-      
-      // Создаём AJAX запрос к нашему API
       var xhr = new XMLHttpRequest();
       xhr.open('GET', '/admin/smiles/order_date/' + orderId, true);
       xhr.setRequestHeader('Content-Type', 'application/json');
       
       xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            try {
-              var response = JSON.parse(xhr.responseText);
-              console.log('Ответ API даты:', response);
-              
-              if (response.success && response.formatted_date) {
-                dateField.value = response.formatted_date;
-                console.log('Поле date автоматически заполнено:', response.formatted_date);
-              } else {
-                console.log('Не удалось получить дату:', response.error || 'Неизвестная ошибка');
-              }
-            } catch (e) {
-              console.error('Ошибка парсинга JSON:', e);
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          try {
+            var response = JSON.parse(xhr.responseText);
+            if (response.success && response.formatted_date) {
+              dateField.value = response.formatted_date;
             }
-          } else {
-            console.error('Ошибка запроса к API даты:', xhr.status);
+          } catch (e) {
+            // Silent fail - date field remains empty
           }
         }
       };

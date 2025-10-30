@@ -54,22 +54,15 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG CREATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
-    puts "DEBUG CREATE: Original date field value: #{smile_params['date'].inspect}"
-    puts "DEBUG CREATE: Allowed date field value: #{allowed_params['date'].inspect}"
-    puts "DEBUG CREATE: order_eight_digit_id value: #{allowed_params['order_eight_digit_id'].inspect}"
+    # Поле даты будет заполнено автоматически при наличии order_eight_digit_id
     
     # Автоматическое заполнение даты из заказа при указании order_eight_digit_id
     if allowed_params['order_eight_digit_id'].present? && allowed_params['order_eight_digit_id'].to_s.strip != ''
       begin
         auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
-        if auto_filled_date.present?
-          allowed_params['date'] = auto_filled_date
-          puts "DEBUG CREATE: Автозаполнение даты успешно: #{auto_filled_date}"
-        else
-          puts "DEBUG CREATE: Автозаполнение даты не выполнено (пустой результат)"
-        end
+        allowed_params['date'] = auto_filled_date if auto_filled_date.present?
       rescue => e
-        puts "DEBUG CREATE: Ошибка автозаполнения даты: #{e.message}"
+        logger.warn "Date auto-fill error: #{e.message}" if respond_to?(:logger)
       end
     end
     
@@ -168,22 +161,15 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG UPDATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
-    puts "DEBUG UPDATE: Original date field value: #{smile_params['date'].inspect}"
-    puts "DEBUG UPDATE: Allowed date field value: #{allowed_params['date'].inspect}"
-    puts "DEBUG UPDATE: order_eight_digit_id value: #{allowed_params['order_eight_digit_id'].inspect}"
+    # Поле даты будет заполнено автоматически при наличии order_eight_digit_id
     
     # Автоматическое заполнение даты из заказа при указании order_eight_digit_id
     if allowed_params['order_eight_digit_id'].present? && allowed_params['order_eight_digit_id'].to_s.strip != ''
       begin
         auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
-        if auto_filled_date.present?
-          allowed_params['date'] = auto_filled_date
-          puts "DEBUG UPDATE: Автозаполнение даты успешно: #{auto_filled_date}"
-        else
-          puts "DEBUG UPDATE: Автозаполнение даты не выполнено (пустой результат)"
-        end
+        allowed_params['date'] = auto_filled_date if auto_filled_date.present?
       rescue => e
-        puts "DEBUG UPDATE: Ошибка автозаполнения даты: #{e.message}"
+        logger.warn "Date auto-fill error: #{e.message}" if respond_to?(:logger)
       end
     end
     
@@ -270,30 +256,17 @@ Rozario::Admin.controllers :smiles do
     begin
       order_eight_digit_id = params[:order_id].to_i
       
-      puts "DEBUG API: Получен запрос на дату заказа: #{order_eight_digit_id}"
-      
-      # Находим заказ по eight_digit_id
       order = Order.find_by_eight_digit_id(order_eight_digit_id)
       
-      if order.nil?
-        puts "DEBUG API: Заказ #{order_eight_digit_id} не найден"
-        return { success: false, error: "Заказ с номером #{order_eight_digit_id} не найден" }.to_json
-      end
+      return { success: false, error: "Заказ с номером #{order_eight_digit_id} не найден" }.to_json unless order
       
-      puts "DEBUG API: Заказ найден, d2_date: #{order.d2_date.inspect}"
-      
-      # Получаем d2_date из заказа
       d2_date = order.d2_date
       
       if d2_date.nil? || d2_date.to_s.strip == ''
-        puts "DEBUG API: d2_date пустое"
         return { success: false, error: "Дата доставки не указана для заказа #{order_eight_digit_id}" }.to_json
       end
       
-      # Форматируем дату в русский формат
       formatted_date = format_russian_date(d2_date)
-      
-      puts "DEBUG API: Отформатированная дата: #{formatted_date}"
       
       {
         success: true,
@@ -303,7 +276,7 @@ Rozario::Admin.controllers :smiles do
       }.to_json
       
     rescue => e
-      puts "DEBUG API: Ошибка получения даты: #{e.message}"
+      logger.error "Order date API error: #{e.message}" if respond_to?(:logger)
       { success: false, error: "Ошибка получения даты: #{e.message}" }.to_json
     end
   end
@@ -414,11 +387,6 @@ Rozario::Admin.controllers :smiles do
   end
 end
 
-  # Тестовая страница для проверки автозаполнения даты
-  get :test_date_api do
-    @title = "Тест API автозаполнения даты"
-    erb :test_date_api, :layout => false
-  end
   
   # Тестовый метод для проверки форматирования дат (только для разработки)
   get :test_date_format do
