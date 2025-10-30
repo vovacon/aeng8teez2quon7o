@@ -627,6 +627,16 @@
       var orderDate = orderData.order_date || new Date().toLocaleDateString('ru-RU');
       var orderId = orderData.order_id;
       
+      // Поле даты (автоматическое заполнение из d2_date заказа)
+      var dateField = document.getElementById('smile_date');
+      if (dateField && (!dateField.value || dateField.value.trim() === '')) {
+        // Получаем d2_date из заказа через AJAX
+        var orderId = orderIdField.value.trim();
+        if (orderId && orderId !== '') {
+          fetchOrderDateAndFill(orderId, dateField);
+        }
+      }
+      
       // Поле H1 (в любом случае при наличии номера заказа)
       var titleField = document.getElementById('smile_title');
       if (titleField && (!titleField.value || titleField.value.trim() === '')) {
@@ -857,6 +867,42 @@
     }, 1000); // Даём время на загрузку данных
     
     console.log('Интерактивный загрузчик товаров заказа инициализирован');
+    
+    // Функция для получения даты заказа и автозаполнения поля date
+    function fetchOrderDateAndFill(orderId, dateField) {
+      if (!orderId || orderId === '') return;
+      
+      console.log('Получение даты для заказа:', orderId);
+      
+      // Создаём AJAX запрос к нашему API
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/admin/smiles/order_date/' + orderId, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var response = JSON.parse(xhr.responseText);
+              console.log('Ответ API даты:', response);
+              
+              if (response.success && response.formatted_date) {
+                dateField.value = response.formatted_date;
+                console.log('Поле date автоматически заполнено:', response.formatted_date);
+              } else {
+                console.log('Не удалось получить дату:', response.error || 'Неизвестная ошибка');
+              }
+            } catch (e) {
+              console.error('Ошибка парсинга JSON:', e);
+            }
+          } else {
+            console.error('Ошибка запроса к API даты:', xhr.status);
+          }
+        }
+      };
+      
+      xhr.send();
+    }
   })();
   
   // Автоотключение SEO индексации при снятии с публикации

@@ -3,7 +3,7 @@ Rozario::Admin.controllers :smiles do
 
   # Хелпер для форматирования даты в русском формате
   def format_russian_date(date_string)
-    return nil if date_string.blank?
+    return nil if date_string.nil? || date_string == ''
     
     begin
       # Парсим дату из строки или объекта Date/DateTime
@@ -39,27 +39,47 @@ Rozario::Admin.controllers :smiles do
   
   # Хелпер для автоматического заполнения даты из заказа
   def auto_fill_date_from_order(order_eight_digit_id, current_date = nil)
-    # Если дата уже заполнена, не перезаписываем
-    return current_date if current_date.present? && current_date.strip != ''
+    puts "DEBUG: Начало auto_fill_date_from_order: order_id=#{order_eight_digit_id.inspect}, current_date=#{current_date.inspect}"
     
-    return nil if order_eight_digit_id.blank?
+    # Если дата уже заполнена, не перезаписываем
+    if current_date && current_date.to_s.strip != ''
+      puts "DEBUG: Дата уже заполнена, оставляем как есть"
+      return current_date
+    end
+    
+    if order_eight_digit_id.nil? || order_eight_digit_id.to_s.strip == ''
+      puts "DEBUG: order_eight_digit_id пустой, возвращаем nil"
+      return nil
+    end
     
     begin
+      puts "DEBUG: Поиск заказа по eight_digit_id: #{order_eight_digit_id.to_i}"
       order = Order.find_by_eight_digit_id(order_eight_digit_id.to_i)
-      return nil if order.nil?
+      
+      if order.nil?
+        puts "DEBUG: Заказ не найден"
+        return nil
+      end
+      
+      puts "DEBUG: Заказ найден, id=#{order.id}"
       
       # Получаем d2_date из заказа
       d2_date = order.d2_date
-      return nil if d2_date.blank?
+      puts "DEBUG: d2_date из заказа: #{d2_date.inspect} (#{d2_date.class})"
+      
+      if d2_date.nil? || d2_date.to_s.strip == ''
+        puts "DEBUG: d2_date пустое, возвращаем nil"
+        return nil
+      end
       
       # Форматируем дату в русский формат
       formatted_date = format_russian_date(d2_date)
-      
-      puts "DEBUG: Автозаполнение даты для заказа #{order_eight_digit_id}: #{d2_date} => #{formatted_date}"
+      puts "DEBUG: Отформатированная дата: #{formatted_date.inspect}"
       
       return formatted_date
     rescue => e
       puts "ОШИБКА получения даты заказа #{order_eight_digit_id}: #{e.message}"
+      puts e.backtrace.first(3).join("\n")
       return nil
     end
   end
@@ -115,13 +135,23 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG CREATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
-    puts "DEBUG CREATE: date field value: #{allowed_params['date'].inspect}"
+    puts "DEBUG CREATE: Original date field value: #{smile_params['date'].inspect}"
+    puts "DEBUG CREATE: Allowed date field value: #{allowed_params['date'].inspect}"
+    puts "DEBUG CREATE: order_eight_digit_id value: #{allowed_params['order_eight_digit_id'].inspect}"
     
     # Автоматическое заполнение даты из заказа при указании order_eight_digit_id
     if allowed_params['order_eight_digit_id'].present? && allowed_params['order_eight_digit_id'].to_s.strip != ''
-      auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
-      allowed_params['date'] = auto_filled_date if auto_filled_date.present?
-      puts "DEBUG CREATE: Автозаполнение даты: #{auto_filled_date}"
+      begin
+        auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
+        if auto_filled_date.present?
+          allowed_params['date'] = auto_filled_date
+          puts "DEBUG CREATE: Автозаполнение даты успешно: #{auto_filled_date}"
+        else
+          puts "DEBUG CREATE: Автозаполнение даты не выполнено (пустой результат)"
+        end
+      rescue => e
+        puts "DEBUG CREATE: Ошибка автозаполнения даты: #{e.message}"
+      end
     end
     
     # Логика для json_order: если указан номер заказа, используем NULL
@@ -153,7 +183,7 @@ Rozario::Admin.controllers :smiles do
       
       # Проверяем что фактически сохранилось
       @smile.reload
-      puts "DEBUG CREATE: smile after save: #{@smile.published.inspect} (#{@smile.published.class})"
+      puts "DEBUG CREATE: smile after save - id: #{@smile.id}, published: #{@smile.published.inspect}, date: #{@smile.respond_to?(:date) ? @smile.date.inspect : 'NO DATE FIELD'}"
       
       @title = pat(:create_title, :model => "smile #{@smile.id}")
       flash[:success] = pat(:create_success, :model => 'Smile')
@@ -219,13 +249,23 @@ Rozario::Admin.controllers :smiles do
     
     # Debug info
     puts "DEBUG UPDATE: published checkbox #{smile_params.has_key?('published') ? 'checked' : 'unchecked'}, raw: #{published_value.inspect}, final: #{published_int}"
-    puts "DEBUG UPDATE: date field value: #{allowed_params['date'].inspect}"
+    puts "DEBUG UPDATE: Original date field value: #{smile_params['date'].inspect}"
+    puts "DEBUG UPDATE: Allowed date field value: #{allowed_params['date'].inspect}"
+    puts "DEBUG UPDATE: order_eight_digit_id value: #{allowed_params['order_eight_digit_id'].inspect}"
     
     # Автоматическое заполнение даты из заказа при указании order_eight_digit_id
     if allowed_params['order_eight_digit_id'].present? && allowed_params['order_eight_digit_id'].to_s.strip != ''
-      auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
-      allowed_params['date'] = auto_filled_date if auto_filled_date.present?
-      puts "DEBUG UPDATE: Автозаполнение даты: #{auto_filled_date}"
+      begin
+        auto_filled_date = auto_fill_date_from_order(allowed_params['order_eight_digit_id'], allowed_params['date'])
+        if auto_filled_date.present?
+          allowed_params['date'] = auto_filled_date
+          puts "DEBUG UPDATE: Автозаполнение даты успешно: #{auto_filled_date}"
+        else
+          puts "DEBUG UPDATE: Автозаполнение даты не выполнено (пустой результат)"
+        end
+      rescue => e
+        puts "DEBUG UPDATE: Ошибка автозаполнения даты: #{e.message}"
+      end
     end
     
     # Логика для json_order: если указан номер заказа, используем NULL
@@ -256,7 +296,7 @@ Rozario::Admin.controllers :smiles do
         
         # Проверяем что фактически сохранилось
         @smile.reload
-        puts "DEBUG UPDATE: smile after save: #{@smile.published.inspect} (#{@smile.published.class})"
+        puts "DEBUG UPDATE: smile after save - id: #{@smile.id}, published: #{@smile.published.inspect}, date: #{@smile.respond_to?(:date) ? @smile.date.inspect : 'NO DATE FIELD'}"
         
         flash[:success] = pat(:update_success, :model => 'Smile', :id =>  "#{params[:id]}")
         params[:save_and_continue] ?
@@ -304,6 +344,51 @@ Rozario::Admin.controllers :smiles do
     redirect url(:smiles, :index)
   end
 
+  # API endpoint для получения даты заказа
+  get '/order_date/:order_id' do
+    content_type :json
+    
+    begin
+      order_eight_digit_id = params[:order_id].to_i
+      
+      puts "DEBUG API: Получен запрос на дату заказа: #{order_eight_digit_id}"
+      
+      # Находим заказ по eight_digit_id
+      order = Order.find_by_eight_digit_id(order_eight_digit_id)
+      
+      if order.nil?
+        puts "DEBUG API: Заказ #{order_eight_digit_id} не найден"
+        return { success: false, error: "Заказ с номером #{order_eight_digit_id} не найден" }.to_json
+      end
+      
+      puts "DEBUG API: Заказ найден, d2_date: #{order.d2_date.inspect}"
+      
+      # Получаем d2_date из заказа
+      d2_date = order.d2_date
+      
+      if d2_date.nil? || d2_date.to_s.strip == ''
+        puts "DEBUG API: d2_date пустое"
+        return { success: false, error: "Дата доставки не указана для заказа #{order_eight_digit_id}" }.to_json
+      end
+      
+      # Форматируем дату в русский формат
+      formatted_date = format_russian_date(d2_date)
+      
+      puts "DEBUG API: Отформатированная дата: #{formatted_date}"
+      
+      {
+        success: true,
+        order_id: order_eight_digit_id,
+        d2_date: d2_date.to_s,
+        formatted_date: formatted_date
+      }.to_json
+      
+    rescue => e
+      puts "DEBUG API: Ошибка получения даты: #{e.message}"
+      { success: false, error: "Ошибка получения даты: #{e.message}" }.to_json
+    end
+  end
+  
   # API endpoint для получения состава заказа
   get '/order_products/:order_id' do
     content_type :json
@@ -414,20 +499,63 @@ end
   get :test_date_format do
     content_type :json
     
-    test_dates = [
-      '15/09/2023',
-      '01/12/2024', 
-      '28/02/2025',
-      DateTime.now,
-      Date.today
-    ]
-    
-    results = test_dates.map do |date|
+    begin
+      # Тест форматирования дат
+      test_dates = [
+        '15/09/2023',
+        '01/12/2024', 
+        '28/02/2025',
+        DateTime.now,
+        Date.today
+      ]
+      
+      date_results = test_dates.map do |date|
+        {
+          input: date.to_s,
+          formatted: format_russian_date(date)
+        }
+      end
+      
+      # Тест получения данных из заказа
+      order_test = nil
+      if params[:order_id]
+        order_id = params[:order_id].to_i
+        order = Order.find_by_eight_digit_id(order_id)
+        if order
+          order_test = {
+            found: true,
+            d2_date: order.d2_date,
+            d2_date_class: order.d2_date.class.to_s,
+            formatted_date: format_russian_date(order.d2_date)
+          }
+        else
+          order_test = { found: false, order_id: order_id }
+        end
+      end
+      
+      # Тест структуры Smile
+      smile_structure = nil
+      if Smile.count > 0
+        sample_smile = Smile.first
+        smile_structure = {
+          has_date_field: sample_smile.respond_to?(:date),
+          attributes: sample_smile.attributes.keys
+        }
+      end
+      
       {
-        input: date.to_s,
-        formatted: format_russian_date(date)
-      }
+        status: 'success',
+        date_format_test: date_results,
+        order_test: order_test,
+        smile_structure: smile_structure,
+        instruction: 'Add ?order_id=12345678 to test specific order'
+      }.to_json
+      
+    rescue => e
+      { 
+        status: 'error', 
+        message: e.message,
+        backtrace: e.backtrace.first(5)
+      }.to_json
     end
-    
-    { test_results: results }.to_json
   end
