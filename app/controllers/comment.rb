@@ -127,7 +127,7 @@ Rozario::App.controllers :feedback do
         recipient_email = ENV['ORDER_EMAIL'].to_s
         if recipient_email.empty?
           puts "❌ WARNING: ORDER_EMAIL environment variable is not set. Email will not be sent."
-          flash[:notice] = "Спасибо! Ваш отзыв отправлен на модерацию и будет опубликован после проверки."
+          flash[:notice] = "Спасибо! Ваш отзыв сохранен #{order_id ? 'и привязан к заказу' : ''}. (Email не отправлен - не настроена почта)"
         else
           begin
             # Используем асинхронную отправку как в рабочей системе заказов
@@ -148,7 +148,7 @@ Rozario::App.controllers :feedback do
             puts "❌ [#{Time.now.strftime('%d.%m.%Y %H:%M:%S')}] ERROR sending comment email: #{e.message}"
             puts "   Recipient: #{recipient_email}"
             puts "   Error class: #{e.class}"
-            flash[:notice] = "Спасибо! Ваш отзыв отправлен на модерацию и будет опубликован после проверки."
+            flash[:notice] = "Спасибо! Ваш отзыв сохранен #{order_id ? 'и привязан к заказу' : ''}. (Email не отправлен - ошибка почтового сервера)"
           end
         end
         
