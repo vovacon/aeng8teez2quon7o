@@ -77,6 +77,48 @@ Rozario::Admin.controllers :permissions do
       erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin">Back to Admin</a></p>'
     end
   end
-
   
+  # Форма редактирования прав пользователя
+  get :edit, :with => :id do
+    begin
+      @title = "Edit Permissions"
+      @account_id = params[:id].to_i
+      
+      # Простое сообщение что функционал в разработке
+      erb '<h1>Edit Permissions</h1><p>Account ID: <%= @account_id %></p><p>This feature is under development due to encoding issues.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+      
+    rescue => e
+      erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+    end
+  end
+  
+  # Сохранение изменений прав
+  put :update, :with => :id do
+    begin
+      erb '<h1>Update Permissions</h1><p>This feature is under development.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+    rescue => e
+      erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+    end
+  end
+  
+  # Быстрое переключение прав через AJAX
+  post :toggle, :with => :id do
+    begin
+      content_type :json
+      '{ "success": false, "error": "This feature is under development" }'
+    rescue => e
+      content_type :json
+      '{ "success": false, "error": "Error occurred" }'
+    end
+  end
+  
+  # Массовое назначение прав
+  post :bulk_update do
+    begin
+      erb '<h1>Bulk Update</h1><p>This feature is under development.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+    rescue => e
+      erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+    end
+  end
+
 end
