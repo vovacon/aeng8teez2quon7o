@@ -88,8 +88,8 @@ Rozario::Admin.controllers :permissions do
       connection = ActiveRecord::Base.connection
       connection.execute("SET NAMES utf8") rescue nil
       
-      sql = "SELECT id, name, surname, email, role, role_permissions FROM accounts WHERE id = ? LIMIT 1"
-      result = connection.execute(connection.quote(sql.gsub('?', @account_id.to_s)))
+      sql = "SELECT id, name, surname, email, role, role_permissions FROM accounts WHERE id = #{@account_id} LIMIT 1"
+      result = connection.execute(sql)
       
       if result.any?
         row = result.first
@@ -146,10 +146,10 @@ Rozario::Admin.controllers :permissions do
       connection = ActiveRecord::Base.connection
       connection.execute("SET NAMES utf8") rescue nil
       
-      update_sql = "UPDATE accounts SET role_permissions = ? WHERE id = ?"
-      connection.execute(
-        "UPDATE accounts SET role_permissions = '#{connection.quote_string(permissions_json)}' WHERE id = #{@account_id}"
-      )
+      # Экранируем JSON для безопасности
+      safe_json = connection.quote(permissions_json)
+      update_sql = "UPDATE accounts SET role_permissions = #{safe_json} WHERE id = #{@account_id}"
+      connection.execute(update_sql)
       
       # Перенаправляем на список с сообщением об успехе
       erb '<h1>Permissions Updated</h1><p>Permissions for user ID <%= @account_id %> have been successfully updated.</p><p>Selected permissions: <%= selected_permissions.join(", ") %></p><p><a href="/admin/permissions">Back to Permissions</a></p>'
