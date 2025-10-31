@@ -50,8 +50,18 @@
                       error@example.com
                   %td
                     -begin
-                      %span.label{:class => role_class(account.role || 'editor')}
-                        = account.role || 'editor'
+                      -role = account.role || 'editor'
+                      -role_css = case role
+                      -when 'admin'
+                        'label-important'
+                      -when 'manager'
+                        'label-warning'
+                      -when 'editor'
+                        'label-info'
+                      -else
+                        'label-default'
+                      %span.label{:class => role_css}
+                        = role
                     -rescue => e
                       %span.label.label-default editor
                   %td
@@ -65,6 +75,6 @@
                       %span.text-muted 0
                   %td
                     -begin
-                      =link_to "Edit", url(:permissions, :edit, :id => account.id), :class => "btn btn-primary btn-small"
+                      %a.btn.btn-primary.btn-small{:href => "/admin/permissions/edit/#{account.id}"} Edit
                     -rescue => e
                       %span.text-muted Edit (Error)
