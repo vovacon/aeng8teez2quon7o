@@ -29,15 +29,15 @@
               %strong Role: 
               -begin
                 -role = @account.role || 'editor'
-                -role_css = case role
+                -case role
                 -when 'admin'
-                  'label-important'
+                  -role_css = 'label-important'
                 -when 'manager'
-                  'label-warning'
+                  -role_css = 'label-warning'
                 -when 'editor'
-                  'label-info'
+                  -role_css = 'label-info'
                 -else
-                  'label-default'
+                  -role_css = 'label-default'
                 %span.label{:class => role_css}
                   = role
               -rescue => e
