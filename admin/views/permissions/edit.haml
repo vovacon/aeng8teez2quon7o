@@ -4,108 +4,143 @@
 
 .tabs-content
   .tab-content.active
-    %h1 Редактирование прав пользователя
+    %h1= @title || "Edit Permissions"
     
-    .user-info.well
-      %h3=@account.display_name
-      %p 
-        %strong Email: 
-        =@account.email
-      %p 
-        %strong Роль: 
-        %span.label{:class => role_class(@account.role)}
-          =@account.role
-      -if @account.role == 'admin'
-        .alert.alert-info
-          %strong Внимание!
-          Администраторы имеют полные права доступа ко всем разделам независимо от настроек ниже.
+    %p.description Edit user access permissions for admin panel sections.
     
-    =form_for :account, url(:permissions, :update, :id => @account.id), :method => :put, :class => "form-horizontal" do |f|
-      .control-group
-        %label.control-label Доступные модули:
-        .controls
-          .row
-            .span12
-              .permissions-grid
-                -@modules.each_with_index do |mod, index|
-                  .permission-item{:class => (index % 3 == 0) ? 'clear' : ''}
-                    %label.checkbox
-                      =check_box_tag "permissions[]", mod, @current_permissions.include?(mod), :id => "perm_#{mod}"
-                      %span.module-name=humanize_module_name(mod)
-                      %small.module-code (#{mod})
+    -if @account
+      .row
+        .span12
+          .well
+            %h3 User Information
+            %p
+              %strong Name: 
+              -begin
+                = @account.display_name
+              -rescue => e
+                Unknown User
+            %p
+              %strong Email: 
+              -begin
+                = @account.email
+              -rescue => e
+                unknown@example.com
+            %p
+              %strong Role: 
+              -begin
+                -role = @account.role || 'editor'
+                -role_css = case role
+                -when 'admin'
+                  'label-important'
+                -when 'manager'
+                  'label-warning'
+                -when 'editor'
+                  'label-info'
+                -else
+                  'label-default'
+                %span.label{:class => role_css}
+                  = role
+              -rescue => e
+                %span.label.label-default editor
           
-          .form-actions.permission-actions
-            %button.btn.btn-mini.select-all{тип => :button} Выбрать все
-            %button.btn.btn-mini.select-none{тип => :button} Очистить все
-            %button.btn.btn-mini.select-common{тип => :button} Обычные модули
-      
-      .form-actions
-        =f.submit пат(:save), :class => "btn btn-primary"
-        =link_to пат(:cancel), url(:permissions, :index), :class => "btn"
-
-:css
-  .permissions-grid {
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    padding: 10px;
-    background: #fafafa;
-  }
-  .permission-item {
-    float: left;
-    width: 30%;
-    margin: 0 1.5% 10px 1.5%;
-    padding: 8px;
-    background: white;
-    border: 1px solid #e3e3e3;
-    border-radius: 3px;
-  }
-  .permission-item.clear {
-    clear: left;
-  }
-  .permission-item label {
-    margin: 0;
-    font-weight: normal;
-  }
-  .module-name {
-    font-weight: bold;
-    color: #333;
-  }
-  .module-code {
-    color: #999;
-    display: block;
-    font-size: 11px;
-  }
-  .permission-actions {
-    margin: 10px 0 0 0;
-    padding: 10px 0 0 0;
-    border-top: 1px solid #ddd;
-  }
-  .user-info {
-    margin-bottom: 20px;
-  }
-  .user-info h3 {
-    margin-top: 0;
-  }
+          -if @account.role == 'admin'
+            .alert.alert-info
+              %strong Note: 
+              This user is an admin and has access to all modules regardless of the settings below.
+          
+          %form{:action => "/admin/permissions/update/#{@account.id}", :method => "post", :class => "form-horizontal"}
+            %fieldset
+              %legend Available Modules
+              
+              .control-group
+                %label.control-label Permissions:
+                .controls
+                  -@modules.each do |module_name|
+                    -begin
+                      -module_display = case module_name
+                      -when 'accounts'
+                        'User Accounts'
+                      -when 'products' 
+                        'Products'
+                      -when 'categories'
+                        'Categories'
+                      -when 'orders'
+                        'Orders'
+                      -when 'comments'
+                        'Comments'
+                      -when 'news'
+                        'News'
+                      -when 'articles'
+                        'Articles'
+                      -when 'pages'
+                        'Pages'
+                      -when 'clients'
+                        'Clients'
+                      -when 'contacts'
+                        'Contacts'
+                      -when 'seo'
+                        'SEO'
+                      -when 'payment'
+                        'Payments'
+                      -when 'smiles'
+                        'Reviews (Smiles)'
+                      -else
+                        module_name.to_s.humanize
+                      
+                      -is_checked = @current_permissions.include?(module_name)
+                      %label.checkbox
+                        %input{:type => "checkbox", :name => "permissions[]", :value => module_name, :checked => is_checked}
+                        = module_display
+                    -rescue => e
+                      %label.checkbox
+                        %input{:type => "checkbox", :name => "permissions[]", :value => module_name}
+                        = module_name
+              
+              .form-actions
+                %button.btn.btn-primary{:type => "submit"} Update Permissions
+                %a.btn.btn-secondary{:href => "/admin/permissions"} Cancel
+    -else
+      .alert.alert-error
+        %strong Error: 
+        User not found or could not be loaded.
+        %br
+        %a.btn.btn-primary{:href => "/admin/permissions"} Back to Permissions
 
 :javascript
   $(document).ready(function() {
+    // Подсчет выбранных модулей
+    function updateCount() {
+      var count = $('input[name="permissions[]"]').filter(':checked').length;
+      var total = $('input[name="permissions[]"]').length;
+      
+      var countText = 'Selected: ' + count + ' of ' + total + ' modules';
+      if (!$('.permission-count').length) {
+        $('.form-actions').prepend('<p class="permission-count text-info">' + countText + '</p>');
+      } else {
+        $('.permission-count').text(countText);
+      }
+    }
+    
+    // Обновляем подсчет при изменении
+    $('input[name="permissions[]"]').change(updateCount);
+    
+    // Начальный подсчет
+    updateCount();
+    
+    // Кнопки выбора всего/ничего
+    if (!$('.select-buttons').length) {
+      $('.controls').prepend('<div class="select-buttons"><button type="button" class="btn btn-mini select-all">Select All</button> <button type="button" class="btn btn-mini select-none">Select None</button></div><br/>');
+    }
+    
     $('.select-all').click(function(e) {
       e.preventDefault();
       $('input[name="permissions[]"]').prop('checked', true);
+      updateCount();
     });
     
     $('.select-none').click(function(e) {
       e.preventDefault();
       $('input[name="permissions[]"]').prop('checked', false);
-    });
-    
-    $('.select-common').click(function(e) {
-      e.preventDefault();
-      var commonModules = ['products', 'categories', 'orders', 'comments', 'news', 'pages'];
-      $('input[name="permissions[]"]').prop('checked', false);
-      commonModules.forEach(function(module) {
-        $('#perm_' + module).prop('checked', true);
-      });
+      updateCount();
     });
   });

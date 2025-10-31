@@ -84,8 +84,44 @@ Rozario::Admin.controllers :permissions do
       @title = "Edit Permissions"
       @account_id = params[:id].to_i
       
-      # Простое сообщение что функционал в разработке
-      erb '<h1>Edit Permissions</h1><p>Account ID: <%= @account_id %></p><p>This feature is under development due to encoding issues.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+      # Загружаем данные аккаунта через безопасный SQL
+      connection = ActiveRecord::Base.connection
+      connection.execute("SET NAMES utf8") rescue nil
+      
+      sql = "SELECT id, name, surname, email, role, role_permissions FROM accounts WHERE id = ? LIMIT 1"
+      result = connection.execute(connection.quote(sql.gsub('?', @account_id.to_s)))
+      
+      if result.any?
+        row = result.first
+        @account = OpenStruct.new(
+          id: row[0].to_i,
+          name: (row[1] || '').to_s.force_encoding('UTF-8'),
+          surname: (row[2] || '').to_s.force_encoding('UTF-8'),
+          email: (row[3] || '').to_s.force_encoding('UTF-8'),
+          role: (row[4] || 'editor').to_s.force_encoding('UTF-8'),
+          role_permissions: (row[5] || '[]').to_s.force_encoding('UTF-8')
+        )
+        
+        @account.define_singleton_method(:display_name) do
+          parts = [name, surname].compact.reject(&:empty?)
+          parts.any? ? parts.join(' ') : email
+        end
+        
+        @account.define_singleton_method(:permissions) do
+          begin
+            JSON.parse(role_permissions)
+          rescue
+            []
+          end
+        end
+        
+        @modules = Account::AVAILABLE_MODULES
+        @current_permissions = @account.permissions
+        
+        render 'permissions/edit'
+      else
+        erb '<h1>User Not Found</h1><p>Account with ID <%= @account_id %> not found.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+      end
       
     rescue => e
       erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
@@ -93,9 +129,31 @@ Rozario::Admin.controllers :permissions do
   end
   
   # Сохранение изменений прав
-  put :update, :with => :id do
+  post :update, :with => :id do  # Используем POST вместо PUT для совместимости
     begin
-      erb '<h1>Update Permissions</h1><p>This feature is under development.</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+      @account_id = params[:id].to_i
+      
+      # Получаем выбранные модули из формы
+      selected_permissions = params[:permissions] || []
+      
+      # Фильтруем только доступные модули
+      valid_permissions = selected_permissions.select { |m| Account::AVAILABLE_MODULES.include?(m) }
+      
+      # Преобразуем в JSON
+      permissions_json = valid_permissions.to_json
+      
+      # Обновляем через SQL
+      connection = ActiveRecord::Base.connection
+      connection.execute("SET NAMES utf8") rescue nil
+      
+      update_sql = "UPDATE accounts SET role_permissions = ? WHERE id = ?"
+      connection.execute(
+        "UPDATE accounts SET role_permissions = '#{connection.quote_string(permissions_json)}' WHERE id = #{@account_id}"
+      )
+      
+      # Перенаправляем на список с сообщением об успехе
+      erb '<h1>Permissions Updated</h1><p>Permissions for user ID <%= @account_id %> have been successfully updated.</p><p>Selected permissions: <%= selected_permissions.join(", ") %></p><p><a href="/admin/permissions">Back to Permissions</a></p>'
+      
     rescue => e
       erb '<h1>Error</h1><p>' + e.class.name + ': ' + e.message + '</p><p><a href="/admin/permissions">Back to Permissions</a></p>'
     end
