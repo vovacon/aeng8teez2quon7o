@@ -46,8 +46,8 @@
                 %td
                   =check_box_tag "account_select", account.id, false, :class => "account-checkbox"
                 %td=account.id
-                %td=account.display_name
-                %td=account.email
+                %td=safe_display_account_field(account.display_name)
+                %td=safe_display_account_field(account.email)
                 %td
                   %span.label{:class => role_class(account.role)}
                     =account.role

@@ -74,7 +74,32 @@ class Account < ActiveRecord::Base
   end
   
   def display_name
-    [name, surname].compact.join(' ').strip.present? ? [name, surname].compact.join(' ').strip : email
+    # Безопасная обработка кодировки для избежания Encoding::UndefinedConversionError
+    begin
+      full_name = [safe_string(name), safe_string(surname)].compact.join(' ').strip
+      full_name.present? ? full_name : safe_string(email)
+    rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError => e
+      # Fallback в случае проблем с кодировкой
+      "Пользователь #{id}"
+    end
+  end
+  
+  # Безопасное преобразование строки в UTF-8
+  def safe_string(str)
+    return nil if str.nil?
+    return str if str.encoding == Encoding::UTF_8 && str.valid_encoding?
+    
+    # Попытка принудительного преобразования в UTF-8
+    if str.respond_to?(:force_encoding)
+      # Сначала пробуем как Windows-1251 (часто используется для русского)
+      str.dup.force_encoding('Windows-1251').encode('UTF-8', 
+        invalid: :replace, undef: :replace, replace: '?')
+    else
+      str.to_s
+    end
+  rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError => e
+    # Если все попытки неудачны, возвращаем безопасную строку
+    str.to_s.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
   end
 
   private
