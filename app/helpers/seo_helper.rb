@@ -412,7 +412,14 @@ end
       
       if existing_path
         # Возвращаем относительный web-путь к файлу
-        web_path = existing_path.gsub(/^\/srv\/(grunt\/dest|public)/, '')
+        # Определяем, в какой директории найден файл
+        if existing_path.include?('/uploads/smile/')
+          # Файл в директории smile (единственное число)
+          web_path = "/uploads/smile/#{filename}"
+        else
+          # Файл в директории smiles (множественное число)
+          web_path = "/uploads/smiles/#{filename}"
+        end
         return web_path
       else
         # Файл не найден ни в одной директории
