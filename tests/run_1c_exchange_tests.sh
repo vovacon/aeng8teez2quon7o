@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Конфигурация
 TEST_DIR="$(dirname "$0")"
 UNIT_TEST="$TEST_DIR/unit/test_1c_exchange_logic.rb"
-MOCK_TEST="$TEST_DIR/utils/test_1c_exchange_mock.rb"
+MOCK_TEST="$TEST_DIR/utils/test_1c_exchange_mock_simple.rb"
 INTEGRATION_TEST="$TEST_DIR/integration/test_1c_exchange_api.rb"
 
 # Функции для вывода
@@ -46,15 +46,20 @@ check_dependencies() {
         missing_gems+=("nokogiri")
     fi
     
-    if [[ "$1" == "mock" || "$1" == "all" ]]; then
-        if ! gem list webmock | grep -q webmock; then
-            missing_gems+=("webmock")
-        fi
-    fi
+    # Mock тесты теперь не требуют webmock - используют простые заглушки
+    # Никаких дополнительных зависимостей не нужно
     
     if [[ ${#missing_gems[@]} -gt 0 ]]; then
         log_warning "Установка недостающих gems: ${missing_gems[*]}"
-        gem install "${missing_gems[@]}"
+        for gem_spec in "${missing_gems[@]}"; do
+            if [[ "$gem_spec" == *":"* ]]; then
+                gem_name="${gem_spec%:*}"
+                gem_version="${gem_spec#*:}"
+                gem install "$gem_name" --version "$gem_version"
+            else
+                gem install "$gem_spec"
+            fi
+        done
     fi
 }
 
