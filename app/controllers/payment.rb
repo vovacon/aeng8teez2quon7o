@@ -204,7 +204,7 @@ Rozario::App.controllers :payment do
     # data[:receipt][:customer][:inn] = ?
     #
     # Get cart from DB 
-    cart = Order_product.find_by_sql("SELECT * FROM order_products WHERE id = #{order.id.to_s}")
+    cart = Order_product.find_by_sql("SELECT * FROM order_products WHERE order_id = #{order.id.to_s}")
     cart.each_with_index { |order_product, i| # Change the price to the corresponding price in the current subdomain (crutch) / Меняем цену на соответстующую цену в текущем поддомене (костыль).
       complect_id = Complect.where(title: order_product.typing).first.id
       product_complect = ProductComplect.where(product_id: order_product.product_id, complect_id: complect_id).first
