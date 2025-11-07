@@ -1,5 +1,6 @@
 # encoding: utf-8
 class Order < ActiveRecord::Base
+	self.table_name = 'orders'  # Явно указываем имя таблицы
 	self.primary_key = 'id'  # Явно указываем первичный ключ
 	belongs_to :useraccount, class_name: 'UserAccount'
 	belongs_to :status, class_name: 'Status'

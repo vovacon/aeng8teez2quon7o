@@ -5,7 +5,10 @@
   =@order.created_at.in_time_zone.strftime("%d.%m.%Y, %H:%M")
 %h5
   Пользователь:
-  =@order.useraccount.nil? ? "Гость" : @order.useraccount.surname
+  = if @order.useraccount && @order.useraccount.respond_to?(:surname)
+    @order.useraccount.surname || "Пользователь"
+  - else
+    "Гость"
 
 %table#list.table.table-striped.table-hover.table-condensed
   %thead
@@ -39,15 +42,17 @@
             - order_products_found = true
             - order_products.each do |order_product|
               %tr.list-row
-                %td.list-column= order_product.title
-                %td.list-column= '%.0f' % order_product.price
-                %td.list-column= order_product.quantity
-                %td.list-column= '%.0f' % (order_product.price.to_f * order_product.quantity.to_i)
+                %td.list-column= order_product.title || "Товар"
+                %td.list-column= order_product.price ? ('%.0f' % order_product.price) : "0"
+                %td.list-column= order_product.quantity || 0
+                %td.list-column= '%.0f' % ((order_product.price || 0).to_f * (order_product.quantity || 0).to_i)
         - rescue => e
           %tr.list-row
             %td.list-column{:colspan => 4}
               Ошибка при загрузке товаров: 
               %code= e.message
+              %br
+              %small= e.backtrace.first if e.backtrace
       - unless order_products_found
         %tr.list-row
           %td.list-column{:colspan => 4}

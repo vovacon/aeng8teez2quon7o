@@ -1,5 +1,6 @@
 # encoding: utf-8
 class Order_product < ActiveRecord::Base
+	self.table_name = 'order_products'  # Явно указываем имя таблицы
 	self.primary_key = 'id'  # Явно указываем первичный ключ
 	belongs_to :order, foreign_key: 'order_id'
 	attr_accessible :order_id, :product_id, :title, :tel, :price, :quantity, :typing, :date_from, :date_to, :surprise
