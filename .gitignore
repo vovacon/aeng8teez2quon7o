@@ -6,7 +6,7 @@
 /tmp/
 *.bak
 /README.md
-/app/controllers/payment.rb
+# /app/controllers/payment.rb
 
 
 # Исключаем вспомогательную директорию + из всех проверок (кроме README)
