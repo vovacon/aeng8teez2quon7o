@@ -37,7 +37,7 @@
       - order_products_found = false
       - if @order && @order.id
         - begin
-          # Используем find_by_sql как в остальных частях проекта
+          -# Используем find_by_sql как в остальных частях проекта
           - order_products = Order_product.find_by_sql("SELECT * FROM order_products WHERE order_id = #{@order.id}")
           - if order_products && order_products.any?
             - order_products_found = true
