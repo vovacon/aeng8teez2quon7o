@@ -180,7 +180,7 @@ class Smile < ActiveRecord::Base
             'title' => item.title || (product ? product.header : "Товар не найден"),
             'price' => item.price,
             'quantity' => item.quantity,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => !product.nil?
           }
         rescue => e
@@ -191,7 +191,7 @@ class Smile < ActiveRecord::Base
             'title' => item.title || "Товар не найден",
             'price' => item.price,
             'quantity' => item.quantity,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => false,
             'error' => e.message
           }

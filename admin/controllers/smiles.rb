@@ -320,7 +320,7 @@ Rozario::Admin.controllers :smiles do
           }
         rescue => e
           {
-            base_id: item.respond_to?(:base_id) ? item.base_id : nil,  # Безопасно получаем base_id
+            base_id: item.id,  # id является первичным ключом в новой структуре
             id: item.product_id,
             title: item.title || "Ошибка загрузки товара",
             price: item.price,

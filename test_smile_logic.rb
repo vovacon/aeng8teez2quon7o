@@ -22,15 +22,15 @@ class MockOrder
 end
 
 class MockOrderProduct
-  attr_accessor :product_id, :title, :price, :quantity, :typing, :base_id
+  attr_accessor :id, :product_id, :title, :price, :quantity, :typing
   
   def initialize(product_id, title, price, quantity, typing = 'standard')
+    @id = rand(1000..9999)  # Первичный ключ order_products
     @product_id = product_id
     @title = title
     @price = price
     @quantity = quantity
     @typing = typing
-    @base_id = rand(1000)
   end
   
   def self.find_by_sql(query)
@@ -44,9 +44,7 @@ class MockOrderProduct
     []
   end
   
-  def respond_to?(method)
-    method == :base_id ? true : super
-  end
+  # respond_to? метод больше не нужен - используем id как первичный ключ
 end
 
 class MockProduct
@@ -116,7 +114,7 @@ class TestSmile
             'typing' => item.typing,
             'date_from' => nil,
             'date_to' => nil,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => !product.nil?
           }
         rescue => e
@@ -127,7 +125,7 @@ class TestSmile
             'title' => item.title || "Товар не найден",
             'price' => item.price,
             'quantity' => item.quantity,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => false,
             'error' => e.message
           }

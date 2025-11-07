@@ -35,15 +35,15 @@ class MockOrder
 end
 
 class MockOrderProduct
-  attr_accessor :product_id, :title, :price, :quantity, :typing, :base_id
+  attr_accessor :id, :product_id, :title, :price, :quantity, :typing
   
   def initialize(product_id, title, price, quantity, typing = 'standard')
+    @id = rand(1000..9999)  # Первичный ключ order_products
     @product_id = product_id
     @title = title
     @price = price
     @quantity = quantity
     @typing = typing
-    @base_id = rand(1000)
   end
   
   def self.find_by_sql(query)
@@ -52,24 +52,18 @@ class MockOrderProduct
     puts "Query: #{query}"
     
     if query.include?('WHERE order_id =')
-      puts "❌ ERROR: Обнаружен неправильный SQL-запрос с 'WHERE order_id ='"
-      puts "Должно быть: 'WHERE id =' (поле id является FK на orders.id)"
-      return []
-    elsif query.include?('WHERE id = 100')
-      puts "✅ OK: SQL-запрос исправлен, возвращаем тестовые данные"
+      puts "✅ OK: Правильный SQL-запрос (order_id является FK на orders.id)"  
       return [
         self.new(123, 'Букет "Романтика"', 1500, 1, 'standard'),
         self.new(456, 'Открытка поздравительная', 100, 1, 'card')
       ]
     else
-      puts "⚠️ WARNING: Неизвестный SQL-запрос"
+      puts "⚠️ WARNING: Неизвестный формат SQL-запроса"
       return []
     end
   end
   
-  def respond_to?(method)
-    method == :base_id ? true : super
-  end
+  # respond_to? метод больше не нужен - используем id как первичный ключ
 end
 
 class MockProduct
@@ -136,7 +130,7 @@ class TestSmile
             'title' => item.title || (product ? product.header : "Товар не найден"),
             'price' => item.price,
             'quantity' => item.quantity,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => !product.nil?
           }
         rescue => e
@@ -146,7 +140,7 @@ class TestSmile
             'title' => item.title || "Товар не найден",
             'price' => item.price,
             'quantity' => item.quantity,
-            'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+            'base_id' => item.id,  # id является первичным ключом
             'product_exists' => false,
             'error' => e.message
           }

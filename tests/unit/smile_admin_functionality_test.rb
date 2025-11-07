@@ -14,8 +14,8 @@ class SmileAdminFunctionalityTest < Minitest::Test
     ]
     
     @mock_order_products = [
-      { base_id: 1001, product_id: 123, title: "Букет Розы", price: 1500, quantity: 1, typing: "standard" },
-      { base_id: 1002, product_id: 456, title: "Открытка", price: 100, quantity: 1, typing: "card" }
+      { id: 1001, product_id: 123, title: "Букет Розы", price: 1500, quantity: 1, typing: "standard" },
+      { id: 1002, product_id: 456, title: "Открытка", price: 100, quantity: 1, typing: "card" }
     ]
     
     @mock_user_accounts = [
@@ -239,7 +239,7 @@ class SmileAdminFunctionalityTest < Minitest::Test
     
     products = @mock_order_products.map do |item|
       {
-        base_id: item[:base_id],
+        base_id: item[:id],  # id является первичным ключом
         id: item[:product_id],
         title: item[:title],
         price: item[:price],

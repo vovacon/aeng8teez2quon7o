@@ -38,19 +38,17 @@ class SmileProductsDataTest < Minitest::Test
       end
       
       def initialize(product_id, title, price, quantity, typing = 'standard')
+        @id = rand(1000..9999)  # Первичный ключ order_products
         @product_id = product_id
         @title = title
         @price = price
         @quantity = quantity
         @typing = typing
-        @base_id = rand(1000)
       end
       
-      attr_reader :product_id, :title, :price, :quantity, :typing, :base_id
+      attr_reader :id, :product_id, :title, :price, :quantity, :typing
       
-      def respond_to?(method)
-        method == :base_id ? true : super
-      end
+      # respond_to? метод больше не нужен
     end
     
     @mock_product_class = Class.new do
@@ -125,7 +123,7 @@ class SmileProductsDataTest < Minitest::Test
                 'title' => item.title || (product ? product.header : "Товар не найден"),
                 'price' => item.price,
                 'quantity' => item.quantity,
-                'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+                'base_id' => item.id,  # id является первичным ключом
                 'product_exists' => !product.nil?
               }
             rescue => e
@@ -135,7 +133,7 @@ class SmileProductsDataTest < Minitest::Test
                 'title' => item.title || "Товар не найден",
                 'price' => item.price,
                 'quantity' => item.quantity,
-                'base_id' => item.respond_to?(:base_id) ? item.base_id : nil,
+                'base_id' => item.id,  # id является первичным ключом
                 'product_exists' => false,
                 'error' => e.message
               }
