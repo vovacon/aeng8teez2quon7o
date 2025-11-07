@@ -16,11 +16,29 @@
       %th.header Стоимость
 
   %tbody
-    -JSON.parse(@order.cart).each do |item|
+    - cart_items = nil
+    - if @order.cart && !@order.cart.empty?
+      - begin
+        - cart_items = JSON.parse(@order.cart)
+      - rescue JSON::ParserError => e
+        - cart_items = nil
+    
+    - if cart_items && cart_items.any?
+      - cart_items.each do |item|
+        %tr.list-row
+          %td.list-column= item["title"]
+          %td.list-column= '%.0f' % item["price"]
+          %td.list-column= item["quantity"]
+          %td.list-column= '%.0f' % (item["price"].to_f * item["quantity"].to_i)
+    - elsif @order.order_products && @order.order_products.any?
+      - @order.order_products.each do |order_product|
+        %tr.list-row
+          %td.list-column= order_product.title
+          %td.list-column= '%.0f' % order_product.price
+          %td.list-column= order_product.quantity
+          %td.list-column= '%.0f' % (order_product.price.to_f * order_product.quantity.to_i)
+    - else
       %tr.list-row
-        %td.list-column= item["title"]
-        %td.list-column= '%.0f' % item["price"]
-        %td.list-column= item["quantity"]
-        %td.list-column= '%.0f' % (item["price"].to_f * item["quantity"].to_i)
+        %td.list-column{:colspan => 4} Корзина заказа пуста или не сохранена
 
 %h3.text-right Итого: #{'%.0f' % (@order.total_summ - @order.delivery_price.to_i)} руб.
