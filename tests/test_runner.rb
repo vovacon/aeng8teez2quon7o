@@ -48,6 +48,16 @@ class TestRunner
     system("ruby utils/order_products_performance_analysis.rb")
   end
   
+  def self.run_1c_tests_only
+    puts "🔄 Запуск только 1C Exchange тестов"
+    puts "  → Compatibility: order_products_1c_compatibility_test.rb"
+    system("ruby unit/order_products_1c_compatibility_test.rb")
+    puts "  → Integration: test_1c_exchange_api.rb (обновлено под новую структуру)"
+    system("ruby integration/test_1c_exchange_api.rb")
+    puts "  ⚠️  Старые unit тесты требуют nokogiri и могут не работать:"
+    puts "    gem install nokogiri && ruby unit/test_1c_exchange_unit.rb"
+  end
+  
   private
   
   def self.run_tests_in_directory(dir)
@@ -90,11 +100,14 @@ else
     TestRunner.run_integration_only
   when 'order_products'
     TestRunner.run_order_products_only
+  when '1c'
+    TestRunner.run_1c_tests_only
   else
-    puts "Использование: ruby test_runner.rb [unit|integration|order_products]"
+    puts "Использование: ruby test_runner.rb [unit|integration|order_products|1c]"
     puts "  unit         - только unit тесты"
     puts "  integration  - только интеграционные тесты"
     puts "  order_products - тесты структуры order_products"
+    puts "  1c           - тесты 1C Exchange API"
     exit 1
   end
 end

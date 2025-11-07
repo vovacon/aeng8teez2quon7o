@@ -47,7 +47,8 @@ class Test1CExchangeUnit < Minitest::Test
     }
     
     @test_order_product_data = {
-      id: 1,
+      id: 1,            # Первичный ключ order_products
+      order_id: 1,      # FK на orders.id (НОВОЕ ПОЛЕ)
       product_id: 123,
       title: 'Тестовый букет роз',
       price: 2200,

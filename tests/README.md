@@ -51,6 +51,7 @@ ruby tests/unit/schema_helper_test.rb
 | `smile_admin_functionality_test.rb` | Тесты функциональности админ панели Smiles | ✅ Новый | 15 тестов |
 | `ci_improvements_test.rb` | Тесты улучшений CI/CD и безопасности | ✅ Новый | 11 тестов |
 | `order_products_structure_test.rb` | Тесты структуры order_products (id->order_id) | ✅ Новый | 9 тестов |
+| `order_products_1c_compatibility_test.rb` | Совместимость с 1C Exchange API | ✅ Новый | 8 тестов |
 
 ## 🔗 Интеграционные тесты (integration/)
 
@@ -63,6 +64,7 @@ ruby tests/unit/schema_helper_test.rb
 | `test_bit_field_published.rb` | Работа с BIT полями published | 🔄 Исправлен, требует БД |
 | `test_smile_published_functionality.rb` | Проверка файлов published | 🔄 Исправлен, не требует БД |
 | `test_order_products_flow.rb` | Интеграционный тест процесса заказов | ✅ Новый |
+| `test_1c_exchange_api.rb` | 1C Exchange API + order_products | ✅ Обновлен |
 
 ## 🎨 UI тесты (ui/)
 

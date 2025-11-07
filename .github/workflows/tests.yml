@@ -292,6 +292,14 @@ jobs:
         ruby integration/test_order_products_flow.rb
         ruby utils/order_products_performance_analysis.rb
         
+    - name: 🔄 Тесты 1C Exchange API совместимости
+      run: |
+        echo "🔄 Тестируем совместимость 1C Exchange API с order_products..."
+        cd tests
+        # Упрощенные тесты совместимости (без nokogiri)
+        ruby unit/order_products_1c_compatibility_test.rb
+        ruby integration/test_1c_exchange_api.rb
+        
     - name: 📈 Отчёт о тестах
       if: always()
       run: |

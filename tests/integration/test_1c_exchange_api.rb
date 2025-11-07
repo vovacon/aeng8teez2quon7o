@@ -336,7 +336,7 @@ class Test1CExchangeAPI < Minitest::Test
     return mock_order_product unless database_available?
     
     Order_product.create!(
-      id: order_id,
+      order_id: order_id,  # ИСПРАВЛЕНО: используем order_id как FK
       product_id: 123,
       title: 'Тестовый букет роз',
       price: 2200,
@@ -378,7 +378,11 @@ class Test1CExchangeAPI < Minitest::Test
     
     # Удаляем тестовые заказы
     test_ids = [12345678, 87654321, 11111111]
-    Order.where(eight_digit_id: test_ids).destroy_all if defined?(Order)
-    Order_product.where(id: test_ids).destroy_all if defined?(Order_product)
+    if defined?(Order)
+      order_pks = Order.where(eight_digit_id: test_ids).pluck(:id)
+      Order.where(eight_digit_id: test_ids).destroy_all
+      # ИСПРАВЛЕНО: используем order_id для поиска order_products
+      Order_product.where(order_id: order_pks).destroy_all if defined?(Order_product)
+    end
   end
 end
