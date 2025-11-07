@@ -30,15 +30,29 @@
           %td.list-column= '%.0f' % item["price"]
           %td.list-column= item["quantity"]
           %td.list-column= '%.0f' % (item["price"].to_f * item["quantity"].to_i)
-    - elsif @order.order_products && @order.order_products.any?
-      - @order.order_products.each do |order_product|
-        %tr.list-row
-          %td.list-column= order_product.title
-          %td.list-column= '%.0f' % order_product.price
-          %td.list-column= order_product.quantity
-          %td.list-column= '%.0f' % (order_product.price.to_f * order_product.quantity.to_i)
     - else
-      %tr.list-row
-        %td.list-column{:colspan => 4} Корзина заказа пуста или не сохранена
+      - order_products_found = false
+      - if @order && @order.respond_to?(:order_products)
+        - begin
+          - order_products = @order.order_products
+          - if order_products && order_products.any?
+            - order_products_found = true
+            - order_products.each do |order_product|
+              %tr.list-row
+                %td.list-column= order_product.title
+                %td.list-column= '%.0f' % order_product.price
+                %td.list-column= order_product.quantity
+                %td.list-column= '%.0f' % (order_product.price.to_f * order_product.quantity.to_i)
+        - rescue => e
+          %tr.list-row
+            %td.list-column{:colspan => 4}
+              Ошибка при загрузке товаров: 
+              %code= e.message
+      - unless order_products_found
+        %tr.list-row
+          %td.list-column{:colspan => 4}
+            Корзина заказа пуста или не сохранена
+            %br
+            %small Заказ ID: #{@order.id}
 
 %h3.text-right Итого: #{'%.0f' % (@order.total_summ - @order.delivery_price.to_i)} руб.
