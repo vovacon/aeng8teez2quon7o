@@ -37,3 +37,14 @@ end
 Padrino.mount('Rozario::App',   :app_file => Padrino.root('app/app.rb')).to('/')
 Padrino.mount("Rozario::Admin", :app_file => File.expand_path('../../admin/app.rb', __FILE__)).to("/admin")
 
+# Инициализация smart encoding после монтирования приложений
+if defined?(SmartMysqlEncoding)
+  begin
+    SmartMysqlEncoding.apply_to_existing_connection
+    SmartMysqlEncoding.patch_new_connections
+    puts "[DEBUG] Smart MySQL encoding суспешно применен" if ENV['DEBUG']
+  rescue => e
+    puts "[WARNING] Smart MySQL encoding не может быть применен: #{e.message}" if ENV['DEBUG']
+  end
+end
+
