@@ -28,6 +28,13 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
     if request.env['HTTP_DATA_TESTING'] == 'true' || params.key?("test_mode")
       email_for_orders = ENV['ADMIN_EMAIL'].to_s
     end
+    
+    # Проверяем, что email_for_orders не пустой
+    if email_for_orders.empty?
+      # Fallback на тот же адрес, который используется в тестах
+      puts "[EMAIL WARNING] ORDER_EMAIL и ADMIN_EMAIL не установлены, используем fallback"
+      email_for_orders = 'admin@rozarioflowers.ru'  # Стандартный адрес
+    end
 
     params = JSON.parse(request.body.read)
     @cart = params['cart_order']
@@ -228,8 +235,11 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
           end
         end
 
-        if email == ENV['ADMIN_EMAIL'].to_s || email.split('@')[1] == ENV['TESTER_EMAIL_SERVER'].to_s
-          email_for_orders = ENV['ADMIN_EMAIL'].to_s
+        if email == ENV['ADMIN_EMAIL'].to_s || (!ENV['TESTER_EMAIL_SERVER'].to_s.empty? && email.split('@')[1] == ENV['TESTER_EMAIL_SERVER'].to_s)
+          test_admin_email = ENV['ADMIN_EMAIL'].to_s
+          if !test_admin_email.empty?
+            email_for_orders = test_admin_email
+          end
         end
 
         subdomain_url = @subdomain ? @subdomain.url : 'default'
@@ -238,6 +248,8 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
         
         puts "[EMAIL] Отправляем письмо администратору: #{email_for_orders}"
         puts "[EMAIL] Тема: #{subj}"
+        puts "[EMAIL DEBUG] ORDER_EMAIL: #{ENV['ORDER_EMAIL'] || 'NOT SET'}"
+        puts "[EMAIL DEBUG] ADMIN_EMAIL: #{ENV['ADMIN_EMAIL'] || 'NOT SET'}"
         email do
           from "Rozario robot <no-reply@rozarioflowers.ru>"
           to email_for_orders
@@ -259,6 +271,7 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
         
         puts "[EMAIL] Отправляем письмо клиенту: #{email}"
         puts "[EMAIL] Тема: #{client_subj}"
+        puts "[EMAIL DEBUG] Client email valid: #{!email.to_s.empty? && email.include?('@')}"
         email do
           content_type :html
           from "Rozario <no-reply@rozarioflowers.ru>"
@@ -267,9 +280,13 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
           body ubody
         end
         
-        puts "[EMAIL] Отправка писем завершена для заказа #{@order_id}"
+        puts "[EMAIL SUCCESS] Отправка писем завершена для заказа #{@order_id}" 
+        puts "[EMAIL SUCCESS] Admin: #{email_for_orders}, Client: #{email}"
       rescue => e
         puts "[EMAIL ERROR] Ошибка при отправке писем: #{e.message}"
+        puts "[EMAIL ERROR] Class: #{e.class}"
+        puts "[EMAIL ERROR] Admin recipient: #{email_for_orders.inspect}"
+        puts "[EMAIL ERROR] Client recipient: #{email.inspect}"
         puts e.backtrace.join("\n") if e.backtrace
         # Продолжаем выполнение, даже если email не отправился
       end
