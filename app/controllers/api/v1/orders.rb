@@ -1,52 +1,5 @@
 # encoding: utf-8
 Rozario::App.controllers :orders, map: 'api/v1/orders' do
-  define_method :parse_price do |key|
-		i = 0
-		str = ''
-		# @sum = Order_product.where('id' + @last_id.to_s + '')
-		# Безопасная загрузка данных с проверкой на ошибки
-		begin
-			@sum = Order_product.where('order_id = ?', key.to_s).to_json
-		rescue => e
-			puts "Error in parse_price method: #{e.message}"
-			return '' # Возвращаем пустую строку при ошибке
-		end
-		parse_title = @sum.scan(/title+\W+"([А-Яа-яЁё\s\d().]+)/).to_a
-		parse_price =  @sum.scan(/[^_]price+\W+([\d]+)/).to_a
-		parse_quantity = @sum.scan(/quantity+\W+([\d]+)/).to_a
-		deliveries_price = begin
-			Order.find(key).del_price || 0
-		rescue
-			0
-		end
-		parse_array = parse_title.zip(parse_price, parse_quantity)
-		length_array = parse_array.length
-		lmi_del_name = "&LMI_SHOPPINGCART.ITEMS[#{length_array}].NAME=Доставка"
-		lmi_del_quantity = "&LMI_SHOPPINGCART.ITEMS[#{length_array}].QTY=1"
-		lmi_del_price = "&LMI_SHOPPINGCART.ITEMS[#{length_array}].PRICE=#{deliveries_price}"
-		lmi_del_tax = "&LMI_SHOPPINGCART.ITEMS[#{length_array}].TAX=vat0"
-		loop do
-			pt = parse_title[i].to_s.delete('[').delete('"').delete('"').delete(']')
-			pp = parse_price[i].join.to_i
-			pq = parse_quantity[i].join.to_i
-			lmi_name = "&LMI_SHOPPINGCART.ITEMS[#{i}].NAME=#{pt}"
-			str.concat(lmi_name)
-			lmi_quantity = "&LMI_SHOPPINGCART.ITEMS[#{i}].QTY=#{pq}"
-			str.concat(lmi_quantity)
-			lmi_price = "&LMI_SHOPPINGCART.ITEMS[#{i}].PRICE=#{pp}"
-			str.concat(lmi_price)
-			lmi_tax = "&LMI_SHOPPINGCART.ITEMS[#{i}].TAX=vat0"
-			str.concat(lmi_tax).to_s
-			i += 1
-			break if i == length_array
-		end
-		str.concat(lmi_del_name).concat(lmi_del_quantity).concat(lmi_del_price).concat(lmi_del_tax)
-	rescue => e
-		# Общая обработка ошибок метода parse_price
-		puts "Fatal error in parse_price method: #{e.message}"
-		puts e.backtrace.join("\n") if e.backtrace
-		return '' # Возвращаем пустую строку при ошибке
-	end
 
   get :test do
     content_type :json
@@ -250,69 +203,70 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
         ord.save
       end
 
+      # Сохраняем переменные для Thread
+      current_subdomain = @subdomain
+      current_order_id = @order_id
+      current_email = email
+      current_cart = cart
+      current_odata = odata
+      current_invoice_fname = invoice_fname
+      current_email_for_orders = email_for_orders
+      current_dname = @dname
+      current_d1_date = @d1_date
+      current_d2_date = @d2_date
+      current_dcall = @dcall
+      current_d2_date_tFr = @d2_date_tFr
+      current_d2_date_tTo = @d2_date_tTo
+
       thread = Thread.new do
         begin
-          puts "[EMAIL] Начинаем отправку писем для заказа #{@order_id}"
-        # рендерим pdf с инвойсом из html
-        order_html = render 'cart/mailorder'
-        order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
-        order_pdf = order_obj.to_pdf
-        invoice_file = order_obj.to_file(invoice_fname)
-        order_html = render 'cart/mailorder3dost'
-        order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
-        order2_pdf = order_obj.to_pdf
-        invoice_file = order_obj.to_file(invoice_fname)
+          puts "[EMAIL] Начинаем отправку писем для заказа #{current_order_id}"
+          # На время отладки пропускаем PDF генерацию
+          # order_html = render 'cart/mailorder'
+          # order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
+          # order_pdf = order_obj.to_pdf
+          # invoice_file = order_obj.to_file(current_invoice_fname)
+          # order_html = render 'cart/mailorder3dost'
+          # order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
+          # order2_pdf = order_obj.to_pdf
+          # invoice_file = order_obj.to_file(current_invoice_fname)
 
-        # отправляем письмо админу
-        if odata["deliveryType"].to_i == 1
-          d_mess = 'Самовывоз: ' + @d1_date
-        elsif odata["deliveryType"].to_i == 2;
-          if (@dcall == 1)
-            d_mess = 'Доставка: ' + @d2_date
-          elsif (@dcall == 2)
-            d_mess = 'Доставка: ' + @d2_date + ', c ' + @d2_date_tFr + ' до ' + @d2_date_tTo;
-          end
-        end
-
-        if email == ENV['ADMIN_EMAIL'].to_s || email.split('@')[1] == ENV['TESTER_EMAIL_SERVER'].to_s
-          email_for_orders = ENV['ADMIN_EMAIL'].to_s
-        end
-
-        subj = "Заказ № #{@order_id} на сайте #{@subdomain.url}.rozarioflowers.ru" + ' | ' + d_mess
-        if @dname == ENV['TESTER_EMAIL'].to_s || @dname == 'test'.downcase; subj = "ТЕСТОВЫЙ заказ № #{@order_id} на сайте " + @subdomain.url + ".rozarioflowers.ru" + ' | ' + d_mess; end;
-        
-        puts "[EMAIL] Отправляем письмо администратору: #{email_for_orders}"
-        puts "[EMAIL] Тема: #{subj}"
-        email do
-          from "Rozario robot <no-reply@rozarioflowers.ru>"
-          to email_for_orders
-          subject subj
-          body "Заказ от " + Time.now.getlocal("+03:00").strftime("%d.%m.%Y %H:%M")
-          add_file :filename => 'order_' + Time.now.getlocal("+04:00").strftime("%d%m%Y-%H%M") + '.pdf', :content => order_pdf
-          add_file :filename => 'orderDostavka_' + Time.now.getlocal("+04:00").strftime("%d%m%Y-%H%M") + '.pdf', :content => order2_pdf
-          cart.each do |item|
-            product = Product.find(item["id"])
-            if product.image.to_s != ""
-              add_file :filename => product.header + '.jpg', :content => File.read(File.join(Padrino.root, "public", product.image.to_s))
+          # отправляем письмо админу
+          if current_odata["deliveryType"].to_i == 1
+            d_mess = 'Самовывоз: ' + current_d1_date
+          elsif current_odata["deliveryType"].to_i == 2;
+            if (current_dcall == 1)
+              d_mess = 'Доставка: ' + current_d2_date
+            elsif (current_dcall == 2)
+              d_mess = 'Доставка: ' + current_d2_date + ', c ' + current_d2_date_tFr + ' до ' + current_d2_date_tTo;
             end
           end
-        end
 
-        # отправляем письмецо юзеру
-        ubody = render 'cart/mailorder2user'
-        subj = "Ваш заказ № #{@order_id} на сайте rozarioflowers.ru"
-        
-        puts "[EMAIL] Отправляем письмо клиенту: #{email}"
-        puts "[EMAIL] Тема: #{subj}"
-        email do
-          content_type :html
-          from "Rozario <no-reply@rozarioflowers.ru>"
-          to email
-          subject subj
-          body ubody
-        end
-        
-        puts "[EMAIL] Отправка писем завершена для заказа #{@order_id}"
+          if current_email == ENV['ADMIN_EMAIL'].to_s || current_email.split('@')[1] == ENV['TESTER_EMAIL_SERVER'].to_s
+            current_email_for_orders = ENV['ADMIN_EMAIL'].to_s
+          end
+
+          subdomain_url = current_subdomain ? current_subdomain.url : 'default'
+          subj = "Заказ № #{current_order_id} на сайте #{subdomain_url}.rozarioflowers.ru" + ' | ' + d_mess
+          if current_dname == ENV['TESTER_EMAIL'].to_s || current_dname == 'test'.downcase; subj = "ТЕСТОВЫЙ заказ № #{current_order_id} на сайте " + subdomain_url + ".rozarioflowers.ru" + ' | ' + d_mess; end;
+          
+          puts "[EMAIL] Отправляем письмо администратору: #{current_email_for_orders}"
+          puts "[EMAIL] Тема: #{subj}"
+          
+          # Простая отправка без PDF (на время отладки)
+          system "echo '#{subj}' | mail -s '#{subj}' #{current_email_for_orders}"
+
+          # отправляем письмецо юзеру
+          # ubody = render 'cart/mailorder2user'
+          client_subj = "Ваш заказ № #{current_order_id} на сайте rozarioflowers.ru"
+          
+          puts "[EMAIL] Отправляем письмо клиенту: #{current_email}"
+          puts "[EMAIL] Тема: #{client_subj}"
+          
+          # Простая отправка клиенту
+          system "echo 'Спасибо за ваш заказ!' | mail -s '#{client_subj}' #{current_email}"
+          
+          puts "[EMAIL] Отправка писем завершена для заказа #{current_order_id}"
         rescue => e
           puts "[EMAIL ERROR] Ошибка при отправке писем: #{e.message}"
           puts e.backtrace.join("\n") if e.backtrace
@@ -321,7 +275,8 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
 
       session[:cart] = nil
       key = Order.where(eight_digit_id: @order_id).first.id
-      @include_tax = parse_price(key).to_s
+      order_obj = Order.new
+      @include_tax = order_obj.parse_price(key).to_s
       res = { order_id: @order_id, include_tax: @include_tax}
       if odata['remember'] == 'true'
         today = Date.today
