@@ -218,29 +218,15 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
       begin
         puts "[EMAIL] Начинаем отправку писем для заказа #{@order_id}"
 
-        # Проверяем данные на корректность UTF-8
-        puts "[EMAIL] Проверяем данные на UTF-8..."
-        
-        # Проверяем ключевые поля
-        safe_fields = {
-          order_id: @order_id.to_s.encode('UTF-8', invalid: :replace, undef: :replace),
-          client_name: @o_name.to_s.encode('UTF-8', invalid: :replace, undef: :replace),
-          client_email: email.to_s.encode('UTF-8', invalid: :replace, undef: :replace),
-          delivery_address: @delivery_address.to_s.encode('UTF-8', invalid: :replace, undef: :replace),
-          comment: @o_comment.to_s.encode('UTF-8', invalid: :replace, undef: :replace)
-        }
-        
-        puts "[EMAIL] UTF-8 проверка: #{safe_fields.keys.join(', ')}"
-        
-        # Генерация PDF (пропускаем пока для отладки)
-        # order_html = render 'cart/mailorder'
-        # order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
-        # order_pdf = order_obj.to_pdf
-        # invoice_file = order_obj.to_file(invoice_fname)
-        # order_html = render 'cart/mailorder3dost'
-        # order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
-        # order2_pdf = order_obj.to_pdf
-        # invoice_file = order_obj.to_file(invoice_fname)
+        # Генерация PDF
+        order_html = render 'cart/mailorder'
+        order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
+        order_pdf = order_obj.to_pdf
+        invoice_file = order_obj.to_file(invoice_fname)
+        order_html = render 'cart/mailorder3dost'
+        order_obj = PDFKit.new(order_html, :page_size => 'Letter', :margin_top => '0', :margin_right => '0', :margin_bottom => '0', :margin_left => '0')
+        order2_pdf = order_obj.to_pdf
+        invoice_file = order_obj.to_file(invoice_fname)
 
         # отправляем письмо админу
         if odata["deliveryType"].to_i == 1
@@ -270,41 +256,38 @@ Rozario::App.controllers :orders, map: 'api/v1/orders' do
         # Отправляем письмо админу только если есть адрес
         if email_for_orders && !email_for_orders.empty?
           puts "[EMAIL] Отправляем письмо администратору: #{email_for_orders}"
-          puts "[EMAIL] Тема: #{subj.encode('UTF-8', invalid: :replace, undef: :replace)}"
-          
-          # Отправляем простое письмо без PDF (для отладки)
-          safe_body = "Новый заказ № #{safe_fields[:order_id]}\n\n" + 
-                      "Клиент: #{safe_fields[:client_name]}\n" +
-                      "Email: #{safe_fields[:client_email]}\n" +
-                      "Адрес: #{safe_fields[:delivery_address]}\n" +
-                      "Комментарий: #{safe_fields[:comment]}\n\n" +
-                      "Время: #{Time.now.getlocal("+03:00").strftime("%d.%m.%Y %H:%M")}"
-          
+          puts "[EMAIL] Тема: #{subj}"
           email do
             from "Rozario robot <no-reply@rozarioflowers.ru>"
             to email_for_orders
-            subject subj.encode('UTF-8', invalid: :replace, undef: :replace)
-            body safe_body.encode('UTF-8', invalid: :replace, undef: :replace)
+            subject subj
+            body "Заказ от " + Time.now.getlocal("+03:00").strftime("%d.%m.%Y %H:%M")
+            add_file :filename => 'order_' + Time.now.getlocal("+04:00").strftime("%d%m%Y-%H%M") + '.pdf', :content => order_pdf
+            add_file :filename => 'orderDostavka_' + Time.now.getlocal("+04:00").strftime("%d%m%Y-%H%M") + '.pdf', :content => order2_pdf
+            cart.each do |item|
+              product = Product.find(item["id"])
+              if product.image.to_s != ""
+                add_file :filename => product.header + '.jpg', :content => File.read(File.join(Padrino.root, "public", product.image.to_s))
+              end
+            end
           end
         else
           puts "[EMAIL SKIP] Пропускаем отправку письма админу - нет адреса получателя"
         end
 
         # отправляем письмецо юзеру
-        client_subj = "Ваш заказ № #{safe_fields[:order_id]} на сайте rozarioflowers.ru"
-        client_body = "Спасибо за ваш заказ!\n\n" +
-                     "Номер заказа: #{safe_fields[:order_id]}\n" +
-                     "Мы свяжемся с вами в ближайшее время для подтверждения.\n\n" +
-                     "С уважением,\nКоманда Rozario Flowers"
+        ubody = render 'cart/mailorder2user'
+        client_subj = "Ваш заказ № #{@order_id} на сайте rozarioflowers.ru"
         
-        puts "[EMAIL] Отправляем письмо клиенту: #{safe_fields[:client_email]}"
+        puts "[EMAIL] Отправляем письмо клиенту: #{email}"
         puts "[EMAIL] Тема: #{client_subj}"
         puts "[EMAIL DEBUG] Client email valid: #{!email.to_s.empty? && email.include?('@')}"
         email do
+          content_type :html
           from "Rozario <no-reply@rozarioflowers.ru>"
-          to safe_fields[:client_email]
-          subject client_subj.encode('UTF-8', invalid: :replace, undef: :replace)
-          body client_body.encode('UTF-8', invalid: :replace, undef: :replace)
+          to email
+          subject client_subj
+          body ubody
         end
         
         puts "[EMAIL SUCCESS] Отправка писем завершена для заказа #{@order_id}" 
