@@ -37,9 +37,11 @@ if defined?(ActiveRecord)
       # Настраиваем кодировку для новых соединений
       return unless ActiveRecord::Base.connected?
       
-      ActiveRecord::Base.connection_pool.instance_eval do
-        # Проверяем, что метод еще не переопределен
-        unless instance_methods.include?(:original_new_connection)
+      pool = ActiveRecord::Base.connection_pool
+      
+      # Проверяем, что метод еще не переопределен
+      unless pool.respond_to?(:original_new_connection)
+        class << pool
           alias_method :original_new_connection, :new_connection
           
           def new_connection

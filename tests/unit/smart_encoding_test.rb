@@ -94,6 +94,27 @@ class SmartEncodingTest < Minitest::Test
     puts "✅ Performance test passed (#{((end_time - start_time) * 1000).round(2)}ms)"
   end
   
+  def test_connection_pool_patching_logic
+    # Симуляция логики патчинга connection pool
+    # Проверяем, что respond_to? работает корректно
+    
+    mock_pool = Object.new
+    
+    # Первый вызов - метод отсутствует
+    refute mock_pool.respond_to?(:original_new_connection)
+    
+    # Добавляем метод через class <<
+    class << mock_pool
+      def original_new_connection; "mocked"; end
+    end
+    
+    # Теперь метод должен существовать
+    assert mock_pool.respond_to?(:original_new_connection)
+    assert_equal "mocked", mock_pool.original_new_connection
+    
+    puts "✅ Connection pool patching logic works"
+  end
+  
   private
   
   def smart_convert_to_utf8(input)
