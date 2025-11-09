@@ -401,7 +401,6 @@ Rozario::App.controllers :api do
                     log.puts "[ITEM #{index + 1}] ✓ ProductComplect updated successfully"
                     updated_count += 1
                   end
-              end
             else
               log.puts "[ITEM #{index + 1}] ⚠️ SKIPPED: Заголовок не содержит ни одного известного типа комплекта"
               log.puts "[ITEM #{index + 1}] Доступные типы: #{substrings.join(', ')}"
@@ -427,7 +426,6 @@ Rozario::App.controllers :api do
         return false  # Общая ошибка транзакции
       end
     end
-  end
 
   get :all_id_1C do
     content_type :text
