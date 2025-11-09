@@ -167,34 +167,76 @@ Rozario::App.controllers :api do
           webp_thumbnail_filepath = File.join(destination_webp_thumbnails, webp_filename)
 
           if !File.exist?(file_path) || overwrite
-            # Скачивание с таймаутом и проверкой размера
-            http = Net::HTTP.new(uri.host, uri.port)
-            http.use_ssl = (uri.scheme == 'https')
-            http.open_timeout = 10
-            http.read_timeout = 30
+            # Улучшенное скачивание с retry логикой
+            download_success = false
+            max_download_attempts = 3
             
-            response = http.get(uri.path)
-            
-            if response.code.to_i != 200
-              result.append("Ошибка скачивания изображения #{filename}: HTTP #{response.code}")
-              next
+            (1..max_download_attempts).each do |attempt|
+              begin
+                http = Net::HTTP.new(uri.host, uri.port)
+                http.use_ssl = (uri.scheme == 'https')
+                configure_http_timeouts(http, 10, 30)
+                
+                start_time = Time.now
+                get_request = Net::HTTP::Get.new(uri.request_uri)
+                get_request['User-Agent'] = 'RozarioFlowers-ImageBot/1.0'
+                
+                response = http.request(get_request)
+                download_time = ((Time.now - start_time) * 1000).round(2)
+                
+                if response.code.to_i == 200
+                  image_data = response.body
+                  
+                  # Проверка размера файла
+                  if image_data.bytesize > 10 * 1024 * 1024
+                    result.append("Ошибка: изображение #{filename} слишком большое (#{(image_data.bytesize.to_f / (1024*1024)).round(2)}МБ)")
+                    break
+                  end
+                  
+                  # Атомарная запись файла
+                  temp_file_path = "#{file_path}.tmp"
+                  File.open(temp_file_path, 'wb') { |f| f.write(image_data) }
+                  File.rename(temp_file_path, file_path)
+                  
+                  result.append("✓ Скачан #{filename} (#{(image_data.bytesize.to_f / 1024).round(1)}КБ, #{download_time}ms)")
+                  download_success = true
+                  break
+                  
+                elsif is_retryable_http_status?(response.code.to_i) && attempt < max_download_attempts
+                  result.append("⚠️ Попытка #{attempt}: HTTP #{response.code} для #{filename}, повторяем...")
+                  sleep(calculate_retry_delay(attempt, 1, 5))
+                  next
+                else
+                  result.append("❌ Ошибка скачивания #{filename}: HTTP #{response.code}")
+                  break
+                end
+                
+              rescue => e
+                if is_retryable_error?(e) && attempt < max_download_attempts
+                  result.append("⚠️ Попытка #{attempt}: #{e.class.name} для #{filename}, повторяем...")
+                  sleep(calculate_retry_delay(attempt, 1, 5))
+                  next
+                else
+                  result.append("❌ Критическая ошибка скачивания #{filename}: #{e.message}")
+                  break
+                end
+              ensure
+                # Очистка временных файлов
+                temp_file_path = "#{file_path}.tmp"
+                File.delete(temp_file_path) if File.exist?(temp_file_path)
+              end
             end
             
-            image_data = response.body
-            
-            # Проверка размера файла (макс 10МБ)
-            if image_data.bytesize > 10 * 1024 * 1024
-              result.append("Ошибка: изображение #{filename} слишком большое (#{(image_data.bytesize.to_f / (1024*1024)).round(2)}МБ)")
+            # Пропускаем обработку если скачивание не удалось
+            unless download_success
               next
             end
-            
-            File.open(file_path, 'wb') { |f| f.write(image_data) } # Сохраняем изображение
             
             # Валидация сохраненного файла
             validation_result = validate_file_safety(file_path)
             unless validation_result[:valid]
               File.delete(file_path) if File.exist?(file_path)
-              result.append("Ошибка валидации файла #{filename}: #{validation_result[:error]}")
+              result.append("❌ Ошибка валидации файла #{filename}: #{validation_result[:error]}")
               next
             end
           end
@@ -487,40 +529,215 @@ Rozario::App.controllers :api do
       
       return { valid: true }
     end
-    def recursive_http_request(http, request, attempts_number)
-      # Настройка таймаутов для безопасности
-      http.open_timeout = 10
-      http.read_timeout = 30
-      
-      begin
-        response = http.request(request)
-        if response.is_a?(Net::HTTPSuccess) || attempts_number == 1
-          return response 
-        else
-          sleep(1)
-          return recursive_http_request(http, request, attempts_number - 1)
-        end
-      rescue Net::TimeoutError, Net::ReadTimeout, Net::OpenTimeout => e
-        if attempts_number > 1
-          sleep(2)
-          return recursive_http_request(http, request, attempts_number - 1)
-        else
-          # Создаем объект ответа для ошибки таймаута
-          error_response = Net::HTTPRequestTimeOut.new('1.1', '408', 'Request Timeout')
-          error_response.instance_variable_set(:@body, "Timeout error: #{e.message}")
-          return error_response
-        end
-      rescue => e
-        if attempts_number > 1
-          sleep(2)
-          return recursive_http_request(http, request, attempts_number - 1)
-        else
-          # Создаем объект ответа для общей ошибки
-          error_response = Net::HTTPInternalServerError.new('1.1', '500', 'Internal Server Error')
-          error_response.instance_variable_set(:@body, "Network error: #{e.message}")
-          return error_response
+    # === ERROR HANDLING & RETRY HELPERS ===
+    
+    # Circuit Breaker Pattern для предотвращения каскадных ошибок
+    @@circuit_breaker_state = :closed # :closed, :open, :half_open
+    @@circuit_breaker_failures = 0
+    @@circuit_breaker_last_failure_time = nil
+    @@circuit_breaker_mutex = Mutex.new
+    
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5
+    CIRCUIT_BREAKER_TIMEOUT = 60 # секунд
+    
+    def circuit_breaker_call(operation_name, log = nil)
+      @@circuit_breaker_mutex.synchronize do
+        case @@circuit_breaker_state
+        when :closed
+          # Нормальное состояние - выполняем операцию
+          begin
+            result = yield
+            # Сброс счетчика при успешном выполнении
+            @@circuit_breaker_failures = 0
+            return result
+          rescue => e
+            @@circuit_breaker_failures += 1
+            @@circuit_breaker_last_failure_time = Time.now
+            
+            if @@circuit_breaker_failures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD
+              @@circuit_breaker_state = :open
+              log&.puts "[CIRCUIT_BREAKER] ❌ Circuit открыт для '#{operation_name}' (#{@@circuit_breaker_failures} ошибок)"
+            else
+              log&.puts "[CIRCUIT_BREAKER] ⚠️ Ошибка #{@@circuit_breaker_failures}/#{CIRCUIT_BREAKER_FAILURE_THRESHOLD} для '#{operation_name}'"
+            end
+            
+            raise e
+          end
+          
+        when :open
+          # Circuit открыт - проверяем таймаут
+          if Time.now - @@circuit_breaker_last_failure_time > CIRCUIT_BREAKER_TIMEOUT
+            @@circuit_breaker_state = :half_open
+            log&.puts "[CIRCUIT_BREAKER] ♾️ Переход в half-open для '#{operation_name}'"
+            # Пробуем выполнить операцию
+            begin
+              result = yield
+              @@circuit_breaker_state = :closed
+              @@circuit_breaker_failures = 0
+              log&.puts "[CIRCUIT_BREAKER] ✓ Circuit закрыт для '#{operation_name}' - операция успешна"
+              return result
+            rescue => e
+              @@circuit_breaker_state = :open
+              @@circuit_breaker_last_failure_time = Time.now
+              log&.puts "[CIRCUIT_BREAKER] ❌ Circuit снова открыт для '#{operation_name}'"
+              raise e
+            end
+          else
+            remaining_time = CIRCUIT_BREAKER_TIMEOUT - (Time.now - @@circuit_breaker_last_failure_time)
+            error_msg = "Circuit breaker открыт для '#{operation_name}'. Повтор через #{remaining_time.round(1)}с"
+            log&.puts "[CIRCUIT_BREAKER] ⛔ #{error_msg}"
+            raise StandardError.new(error_msg)
+          end
+          
+        when :half_open
+          # Пробуем одну операцию
+          begin
+            result = yield
+            @@circuit_breaker_state = :closed
+            @@circuit_breaker_failures = 0
+            log&.puts "[CIRCUIT_BREAKER] ✓ Circuit закрыт для '#{operation_name}' после half-open"
+            return result
+          rescue => e
+            @@circuit_breaker_state = :open
+            @@circuit_breaker_last_failure_time = Time.now
+            log&.puts "[CIRCUIT_BREAKER] ❌ Circuit открыт для '#{operation_name}' из half-open"
+            raise e
+          end
         end
       end
+    end
+    
+    def configure_http_timeouts(http, connect_timeout = 10, read_timeout = 30)
+      http.open_timeout = connect_timeout
+      http.read_timeout = read_timeout
+      http.ssl_timeout = connect_timeout if http.use_ssl?
+      
+      # Дополнительные настройки для стабильности
+      http.keep_alive_timeout = 2
+    end
+    
+    def is_retryable_error?(error)
+      retryable_errors = [
+        Net::TimeoutError,
+        Net::ReadTimeout, 
+        Net::OpenTimeout,
+        Net::ConnectTimeout,
+        Timeout::Error,
+        Errno::ECONNREFUSED,
+        Errno::ECONNRESET,
+        Errno::ECONNABORTED,
+        Errno::EHOSTUNREACH,
+        Errno::ENETUNREACH,
+        Errno::ETIMEDOUT,
+        SocketError
+      ]
+      
+      retryable_errors.any? { |err_class| error.is_a?(err_class) }
+    end
+    
+    def is_retryable_http_status?(status_code)
+      # 5xx ошибки сервера и 429 Too Many Requests
+      retryable_statuses = [408, 429, 500, 502, 503, 504, 507, 509, 510, 511]
+      retryable_statuses.include?(status_code)
+    end
+    
+    def calculate_retry_delay(attempt, base_delay = 1, max_delay = 30)
+      # Экспоненциальная задержка с jitter
+      delay = [base_delay * (2 ** (attempt - 1)), max_delay].min
+      jitter = Random.rand(0.1..0.3) * delay
+      (delay + jitter).round(2)
+    end
+    
+    def log_retry_attempt(log, attempt, max_attempts, error, context = "")
+      log.puts "[RETRY][#{context}] Attempt #{attempt}/#{max_attempts} failed: #{error.class.name}: #{error.message}"
+      if attempt < max_attempts
+        delay = calculate_retry_delay(attempt)
+        log.puts "[RETRY][#{context}] Retrying in #{delay} seconds..."
+      else
+        log.puts "[RETRY][#{context}] All retry attempts exhausted"
+      end
+    end
+    
+    def enhanced_http_request(http, request, max_attempts = 3, context = "", log = nil)
+      configure_http_timeouts(http)
+      
+      (1..max_attempts).each do |attempt|
+        begin
+          start_time = Time.now
+          response = http.request(request)
+          duration = ((Time.now - start_time) * 1000).round(2)
+          
+          log&.puts "[HTTP][#{context}] Request completed in #{duration}ms (attempt #{attempt})"
+          
+          # Проверяем статус ответа
+          status_code = response.code.to_i
+          
+          if response.is_a?(Net::HTTPSuccess)
+            log&.puts "[HTTP][#{context}] ✓ Success: HTTP #{status_code}"
+            return response
+          elsif is_retryable_http_status?(status_code) && attempt < max_attempts
+            log&.puts "[HTTP][#{context}] ⚠️ Retryable HTTP status: #{status_code}"
+            delay = calculate_retry_delay(attempt)
+            sleep(delay)
+            next
+          else
+            log&.puts "[HTTP][#{context}] ❌ Non-retryable HTTP status: #{status_code}"
+            return response
+          end
+          
+        rescue => error
+          log_retry_attempt(log, attempt, max_attempts, error, context) if log
+          
+          if is_retryable_error?(error) && attempt < max_attempts
+            delay = calculate_retry_delay(attempt)
+            sleep(delay)
+            next
+          elsif attempt == max_attempts
+            # Создаем ошибку ответа для последней попытки
+            return create_error_response(error, context)
+          end
+        end
+      end
+    end
+    
+    def create_error_response(error, context = "")
+      case error
+      when Net::TimeoutError, Net::ReadTimeout, Net::OpenTimeout, Net::ConnectTimeout, Timeout::Error
+        response = Net::HTTPRequestTimeOut.new('1.1', '408', 'Request Timeout')
+        response.instance_variable_set(:@body, JSON.generate({
+          error: 'timeout',
+          message: "Request timeout in #{context}: #{error.message}",
+          error_class: error.class.name
+        }))
+      when Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ECONNABORTED
+        response = Net::HTTPServiceUnavailable.new('1.1', '503', 'Service Unavailable')
+        response.instance_variable_set(:@body, JSON.generate({
+          error: 'connection_refused',
+          message: "Connection failed in #{context}: #{error.message}",
+          error_class: error.class.name
+        }))
+      when Errno::EHOSTUNREACH, Errno::ENETUNREACH
+        response = Net::HTTPServiceUnavailable.new('1.1', '503', 'Service Unavailable')
+        response.instance_variable_set(:@body, JSON.generate({
+          error: 'network_unreachable',
+          message: "Network unreachable in #{context}: #{error.message}",
+          error_class: error.class.name
+        }))
+      else
+        response = Net::HTTPInternalServerError.new('1.1', '500', 'Internal Server Error')
+        response.instance_variable_set(:@body, JSON.generate({
+          error: 'unknown',
+          message: "Unknown error in #{context}: #{error.message}",
+          error_class: error.class.name
+        }))
+      end
+      
+      response
+    end
+    
+    def recursive_http_request(http, request, attempts_number)
+      # Обратная совместимость с старым API
+      enhanced_http_request(http, request, attempts_number, "legacy", nil)
     end
     def transliterate(text)
       transliteration_map = {
@@ -838,16 +1055,22 @@ Rozario::App.controllers :api do
             
             url = URI.parse('https://server-1c.rdp.rozarioflowers.ru/exchange/hs/api/prices') # Определить URL для POST запроса.
             
-            # Создать объект запроса.
-            http = Net::HTTP.new(url.host, url.port) # Создаем объект запроса.
+            # Создать объект запроса с улучшенной обработкой ошибок.
+            http = Net::HTTP.new(url.host, url.port)
             http.use_ssl = true
-            request = Net::HTTP::Post.new(url.path, {'Content-Type' => 'application/json'}) # Создаем запрос.
+            configure_http_timeouts(http, 15, 45) # Увеличенные таймауты для начального запроса
+            
+            request = Net::HTTP::Post.new(url.path, {
+              'Content-Type' => 'application/json',
+              'User-Agent' => 'RozarioFlowers/1.0',
+              'Accept' => 'application/json'
+            })
 
             n = 512 / 4
-
-            request.body = {'etag': nil, 'count': n}.to_json # Тело запроса в формате JSON.
-            # response = http.request(request) # Отправляем запрос и получаем ответ.
-            response = recursive_http_request(http, request, 7) # Отправить запрос с повтором при ошибке.
+            request.body = {'etag': nil, 'count': n}.to_json
+            
+            log.puts "[HTTP] Отправка начального запроса на 1С сервер..."
+            response = enhanced_http_request(http, request, 5, "initial_request", log) # Улучшенная обработка
             response_code = response.code.to_i # Получить код ответа от сервера.
 
             if response_code == 200 # Если код ответа 200 (успешный)...
@@ -880,12 +1103,25 @@ Rozario::App.controllers :api do
               # n = pending if n > pending # Если запрашиваем данных больше, чем имеется в остатке, то скорректировать запрашиваемое число элементов.
               if data.length > 0
                 begin
-                  if !crud_product_complects_transaction(data, log) # Попытаться выполнить транзакцию с данными.
-                    ok = false # Установить флаг ошибки.
+                  log.puts "[INITIAL_BATCH] Обработка #{data.length} товаров..."
+                  transaction_start_time = Time.now
+                  
+                  transaction_result = crud_product_complects_transaction(data, log)
+                  
+                  transaction_duration = ((Time.now - transaction_start_time) * 1000).round(2)
+                  
+                  if transaction_result
+                    log.puts "[INITIAL_BATCH] ✓ Транзакция успешно завершена за #{transaction_duration}ms"
+                  else
+                    log.puts "[INITIAL_BATCH] ❌ Ошибка транзакции за #{transaction_duration}ms"
+                    ok = false
                   end
+                  
                 rescue => e
-                  ok = false # Установить флаг ошибки.
-                  log.puts "Произошла ошибка, транзакция откатана: #{e.message}" # Логировать ошибку.
+                  transaction_duration = ((Time.now - transaction_start_time) * 1000).round(2) rescue "N/A"
+                  log.puts "[INITIAL_BATCH] ❌ Критическая ошибка транзакции (#{transaction_duration}ms): #{e.class.name}: #{e.message}"
+                  log.puts "[INITIAL_BATCH] Stacktrace: #{e.backtrace.first(5).join('; ')}"
+                  ok = false
                 end
                 if data.length <= n && pending > 0 # The length of the data array in the response matches the length specified in the query.
                   tail = pending % n # Вычислить остаток данных.
@@ -894,13 +1130,20 @@ Rozario::App.controllers :api do
                   n_requests = n_requests + 1 if tail > 0 # Если есть хвост, то добавить доп. запрос для него.
                   i = 1; failed = 0 # Инициализировать переменные для подсчета запросов и неудачных попыток.
                   log.puts "Ожидается запросов: #{n_requests}" # Логировать количество запросов.
-                  while i <= n_requests && i > 0 && !etag.nil? # Если данных в ответе меньше или равно запрашиваемым, но есть остаток. Короче говоря, пока есть запросы, выполняем их...
-                    log.puts "Запрос ##{i}" # Логировать номер запроса.
-                    request = Net::HTTP::Post.new(url.path, {'Content-Type' => 'application/json'}) # Создать новый запрос.
-                    n = i == n_requests ? tail : n # Если последний запрос, то запрашиваем ровно столько элементов, сколько осталось в хвосте.
-                    request.body = {'etag': etag, 'count': n}.to_json # Установить тело запроса в формате JSON.
-                    # response = http.request(request) # Отправляем запрос и получаем ответ.
-                    response = recursive_http_request(http, request, 3) # Отправить запрос рекурсивно.
+                  while i <= n_requests && i > 0 && !etag.nil? # Пока есть запросы, выполняем их...
+                    log.puts "[BATCH] Запрос ##{i}/#{n_requests} (etag: #{etag})"
+                    
+                    request = Net::HTTP::Post.new(url.path, {
+                      'Content-Type' => 'application/json',
+                      'User-Agent' => 'RozarioFlowers/1.0',
+                      'Accept' => 'application/json'
+                    })
+                    
+                    n = i == n_requests ? tail : n # Последний запрос - запрашиваем остаток
+                    request.body = {'etag': etag, 'count': n}.to_json
+                    
+                    # Меньше повторов для batch запросов
+                    response = enhanced_http_request(http, request, 3, "batch_request_#{i}", log)
                     response_code = response.code.to_i # Получить код ответа.
                     if response_code == 200 # Если код ответа 200.
                       begin
@@ -923,16 +1166,28 @@ Rozario::App.controllers :api do
                       pending    = response_data['pending'] - data.length # Рассчитать оставшееся количество данных.
                       log.puts "Код ответа: #{response_code} | data.length: #{data.length} | etag: #{etag == '' || etag.nil? ? 'null' : etag} | updated_at: #{updated_at} | pending: #{pending}" # Логировать информацию о полученных данных.
                       begin
-                        crud_product_complects_transaction(data, log) # Попытаться выполнить транзакцию.
-                        log.puts "Транзакция успешно завершена" # Логировать успешную транзакцию.
-                        i += 1 # Увеличить счетчик запросов.
-                      rescue => e
-                        failed += 1 # Увеличить счетчик неудачных попыток.
-                        if failed > 7 # Если количество неудачных попыток превышает 7, то...
-                          ok = false # ...установить флаг ошибки и...
-                          break # ...завершить цикл.
+                        transaction_success = crud_product_complects_transaction(data, log)
+                        if transaction_success
+                          log.puts "[BATCH] ✓ Транзакция успешно завершена для batch #{i}"
+                          i += 1
+                          failed = 0 # Сбросить счетчик ошибок после успеха
+                        else
+                          failed += 1
+                          log.puts "[BATCH] ❌ Транзакция не удалась для batch #{i} (ошибка #{failed}/7)"
+                          if failed > 7
+                            ok = false
+                            log.puts "[BATCH] ❌ Превышен лимит ошибок транзакций, прекращаем обработку"
+                            break
+                          end
                         end
-                        log.puts "Произошла ошибка, транзакция откатана: #{e.message}" # Логировать ошибку.
+                      rescue => e
+                        failed += 1
+                        log.puts "[BATCH] ❌ Критическая ошибка в batch #{i}: #{e.class.name}: #{e.message}"
+                        log.puts "[BATCH] Backtrace: #{e.backtrace.first(3).join('; ')}"
+                        if failed > 7
+                          ok = false
+                          break
+                        end
                       end
                     else
                       ok = false # Установить флаг ошибки.
@@ -955,30 +1210,62 @@ Rozario::App.controllers :api do
               ok = false # Установить флаг ошибки.
               log.puts "ERROR_66b79b57. Соединение не удалось (1). Код ответа: #{response_code}" # Логировать ошибку соединения.
             end
-            if ok # Сadence...
-              request = Net::HTTP::Post.new(url.path, {'Content-Type' => 'application/json'}) # Создать запрос.
-              request.body = {'etag': etag, 'count': 0}.to_json # Установить тело запроса с ошибкой в формате JSON.
-              response = recursive_http_request(http, request, 3) # Отправить запрос рекурсивно.
-              response_code = response.code.to_i # Получить код ответа.
-              if response_code == 200; log.puts "Сервер извещён о состоянии передачи (ok == true)" # Логировать извещение о ошибке.
-              else;                    log.puts "Не удалось известить сервер о состоянии передачи (ok == true)"; end # Логировать ошибку при извещении.
-            else
-              request = Net::HTTP::Post.new(url.path, {'Content-Type' => 'application/json'}) # Создать запрос.
-              request.body = {'error': true }.to_json # Установить тело запроса с ошибкой в формате JSON.
-              response = recursive_http_request(http, request, 3) # Отправить запрос рекурсивно.
-              response_code = response.code.to_i # Получить код ответа.
-              if response_code == 200; log.puts "Сервер извещён о состоянии передачи (ok == false)" # Логировать извещение о ошибке.
-              else;                    log.puts "Не удалось известить сервер о состоянии передачи (ok == true)"; end # Логировать ошибку при извещении.
+            # Уведомление сервера о результате обработки
+            begin
+              notify_request = Net::HTTP::Post.new(url.path, {
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'RozarioFlowers/1.0'
+              })
+              
+              if ok
+                log.puts "[NOTIFICATION] Отправка уведомления об успешном завершении..."
+                notify_request.body = {'etag': etag, 'count': 0}.to_json
+              else
+                log.puts "[NOTIFICATION] Отправка уведомления об ошибке..."
+                notify_request.body = {'error': true}.to_json
+              end
+              
+              notify_response = enhanced_http_request(http, notify_request, 2, "notification", log)
+              notify_code = notify_response.code.to_i
+              
+              if notify_code == 200
+                log.puts "[NOTIFICATION] ✓ Сервер успешно уведомлён (ok: #{ok})"
+              else
+                log.puts "[NOTIFICATION] ❌ Ошибка уведомления: HTTP #{notify_code}"
+                if notify_response.body && !notify_response.body.empty?
+                  log.puts "[NOTIFICATION] Response: #{notify_response.body[0..200]}..."
+                end
+              end
+              
+            rescue => e
+              log.puts "[NOTIFICATION] ❌ Критическая ошибка уведомления: #{e.class.name}: #{e.message}"
             end
             log.puts "Конец." # Логировать завершение процесса.
           end
         rescue => e
           File.open(log_path, 'a') do |log|
-            log.puts "--> Общая ошибка при выполнении потока."
+            log.puts "[THREAD_ERROR] Критическая ошибка в главном потоке: #{e.class.name}: #{e.message}"
+            log.puts "[THREAD_ERROR] Stacktrace:"
+            e.backtrace.first(10).each_with_index do |line, i|
+              log.puts "[THREAD_ERROR]   #{i+1}. #{line}"
+            end
           end
         ensure
-          sleep 5 # Небольшой таймаут во избежание коллизий 🍒
-          $thread_mutex.synchronize { $thread_running = false } # Освободить состояние потока после завершения.
+          File.open(log_path, 'a') do |log|
+            log.puts "[THREAD_CLEANUP] Зачистка ресурсов потока..."
+            cleanup_start = Time.now
+          end
+          
+          begin
+            sleep 3 # Уменьшенная задержка для быстрого респонса
+          ensure
+            $thread_mutex.synchronize { $thread_running = false }
+            
+            File.open(log_path, 'a') do |log|
+              cleanup_duration = ((Time.now - cleanup_start) * 1000).round(2) rescue "N/A"
+              log.puts "[THREAD_CLEANUP] ✓ Поток освобожден за #{cleanup_duration}ms"
+            end
+          end
         end
       end
     rescue => e
