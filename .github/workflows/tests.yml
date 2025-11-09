@@ -308,6 +308,15 @@ jobs:
         ruby unit/order_products_1c_compatibility_test.rb
         ruby integration/test_1c_exchange_api.rb
         
+    - name: 🔄 Тесты 1C Notify Update API
+      run: |
+        echo "🔄 Тестируем новый 1C Notify Update API endpoint..."
+        cd tests
+        # Запуск комплексных тестов для 1c_notify_update
+        chmod +x run_1c_notify_update_tests.sh
+        # Запускаем только unit и mock тесты в CI (интеграционные тесты требуют внешних сервисов)
+        ./run_1c_notify_update_tests.sh --no-integration
+        
     - name: 📈 Отчёт о тестах
       if: always()
       run: |
@@ -325,7 +334,9 @@ jobs:
         echo "  - Smart Encoding Detection: 8 тестов, 40+ assertions (НОВЫЕ)"
         echo "  - Email Functionality: 12 тестов, 60+ assertions (НОВЫЕ)"
         echo "  - Email Order Integration: 7 тестов, 35+ assertions (НОВЫЕ)"
-        echo "  - Итого: 127+ тестов, 675+ assertions"
+        echo "  - 1C Notify Update Validation: 25+ тестов, 100+ assertions (НОВЫЕ)"
+        echo "  - 1C Notify Update HTTP/Mocks: 15+ тестов, 75+ assertions (НОВЫЕ)"
+        echo "  - Итого: 167+ тестов, 850+ assertions"
         
     - name: 📤 Загрузка отчётов тестов
       uses: actions/upload-artifact@v4
@@ -423,6 +434,50 @@ jobs:
             echo "✅ Используется семантический тег: <$tag>"
           fi
         done
+
+  integration-tests:
+    name: 🔗 Интеграционные тесты 1C
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    
+    # Запускаем только по расписанию, вручную или при изменениях в 1C коде
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.modified, 'app/controllers/api.rb')
+    
+    steps:
+    - name: 📋 Клонирование репозитория
+      uses: actions/checkout@v4
+      
+    - name: 🔥 Настройка Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ env.RUBY_VERSION }}
+        bundler-cache: false
+        
+    - name: 🛠️ Установка зависимостей
+      run: |
+        gem install minitest json net-http uri --no-document
+        
+    - name: 🔗 Интеграционные тесты 1C Notify Update
+      env:
+        TEST_BASE_URL: "https://staging.rozarioflowers.ru"  # Или тестовый сервер
+      run: |
+        echo "🔗 Запуск полного цикла интеграционных тестов..."
+        cd tests
+        chmod +x run_1c_notify_update_tests.sh
+        
+        # Запускаем только интеграционные тесты
+        ./run_1c_notify_update_tests.sh --integration-only
+        
+    - name: 📄 Загрузка логов интеграционных тестов
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: integration-test-logs
+        path: |
+          log/1c_notify_update_tests.log
+          log/1c_notify_update_test_report.txt
+          log/1c_notify_update.log
+        retention-days: 7
 
   database-tests:
     name: 🗺️ Тесты с базой данных
@@ -536,7 +591,7 @@ jobs:
   summary:
     name: 📈 Сводка результатов
     runs-on: ubuntu-latest
-    needs: [security-scan, code-quality, dependencies-check, unit-tests, performance-check, accessibility-check]
+    needs: [security-scan, code-quality, dependencies-check, unit-tests, performance-check, accessibility-check, integration-tests]
     if: always()
     
     steps:
@@ -559,7 +614,11 @@ jobs:
         fi
         
         if [[ "${{ needs.unit-tests.result }}" == "success" ]]; then
-          echo "- 🧪 Unit тесты (100+ тестов: Schema + FAQ + Smile Products + Multiple Comments + Aggregated Schema + Admin + CI + Order Products Structure)"
+          echo "- 🧪 Unit тесты (167+ тестов: Schema + FAQ + Smile Products + Multiple Comments + Aggregated Schema + Admin + CI + Order Products Structure + 1C Notify Update Validation + HTTP/Mocks)"
+        fi
+        
+        if [[ "${{ needs.integration-tests.result }}" == "success" ]]; then
+          echo "- 🔗 Интеграционные тесты 1C (15+ тестов: Полный workflow + HTTP + Обработка ошибок)"
         fi
         
         if [[ "${{ needs.performance-check.result }}" == "success" ]]; then
@@ -597,6 +656,10 @@ jobs:
         
         if [[ "${{ needs.accessibility-check.result }}" == "failure" ]]; then
           FAILED_JOBS+=("accessibility-check")
+        fi
+        
+        if [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
+          FAILED_JOBS+=("integration-tests")
         fi
         
         if [[ ${#FAILED_JOBS[@]} -eq 0 ]]; then
