@@ -73,18 +73,20 @@ run_test() {
     cd "$TEST_DIR"
     output=$(ruby "$test_file" 2>&1) || exit_code=$?
     
-    # Calculate duration
+    # Calculate duration (using basic arithmetic since bc might not be available)
     local end_time=$(date +%s.%N)
-    local duration=$(echo "$end_time - $start_time" | bc -l)
+    local duration=$(python3 -c "print(round(float('$end_time') - float('$start_time'), 3))" 2>/dev/null || echo "N/A")
     
     # Log the output
     echo "$output" | tee -a "$TEST_LOG"
     
-    # Display result
+    # Display and log result
     if [ $exit_code -eq 0 ]; then
         echo -e "${GREEN}✓ PASSED${NC} $test_name (${duration}s)"
+        echo "✓ PASSED $test_name (${duration}s)" >> "$TEST_LOG"
     else
         echo -e "${RED}✗ FAILED${NC} $test_name (${duration}s) - Exit code: $exit_code"
+        echo "✗ FAILED $test_name (${duration}s) - Exit code: $exit_code" >> "$TEST_LOG"
         echo -e "${RED}  Last few lines of output:${NC}"
         echo "$output" | tail -n 5 | sed 's/^/    /'
     fi
@@ -117,8 +119,9 @@ check_prerequisites() {
     # Check if test files exist
     local test_files_found=0
     for test_type in "unit" "integration" "utils"; do
-        if ls "$TEST_DIR/$test_type/test_1c_notify_update_*.rb" 1> /dev/null 2>&1; then
+        if ls "$TEST_DIR/$test_type/test_1c_notify_update_"*.rb 1> /dev/null 2>&1; then
             test_files_found=$((test_files_found + 1))
+            echo "Found test files in $test_type directory"
         fi
     done
     
@@ -241,15 +244,25 @@ Test Results Summary:
 EOF
     
     # Count results from log (simplified approach)
-    local total_tests=$(grep -c "✓ PASSED\|✗ FAILED" "$TEST_LOG" || echo "0")
-    local passed_tests=$(grep -c "✓ PASSED" "$TEST_LOG" || echo "0")
-    local failed_tests=$(grep -c "✗ FAILED" "$TEST_LOG" || echo "0")
+    local total_tests=$(grep -c "✓ PASSED\|✗ FAILED" "$TEST_LOG" 2>/dev/null || echo "0")
+    local passed_tests=$(grep -c "✓ PASSED" "$TEST_LOG" 2>/dev/null || echo "0")
+    local failed_tests=$(grep -c "✗ FAILED" "$TEST_LOG" 2>/dev/null || echo "0")
+    
+    # Clean up counts (remove any extra whitespace/newlines)
+    total_tests=$(echo "$total_tests" | head -n 1 | tr -d ' \n\r')
+    passed_tests=$(echo "$passed_tests" | head -n 1 | tr -d ' \n\r')
+    failed_tests=$(echo "$failed_tests" | head -n 1 | tr -d ' \n\r')
+    
+    # Ensure we have numeric values
+    total_tests=${total_tests:-0}
+    passed_tests=${passed_tests:-0}
+    failed_tests=${failed_tests:-0}
     
     cat >> "$report_file" << EOF
 Total tests run: $total_tests
 Passed: $passed_tests
 Failed: $failed_tests
-Success rate: $(echo "scale=2; $passed_tests * 100 / $total_tests" | bc -l 2>/dev/null || echo "N/A")%
+Success rate: $(python3 -c "print(round($passed_tests * 100.0 / max($total_tests, 1), 2))" 2>/dev/null || echo "N/A")%
 
 Detailed Results:
 EOF
