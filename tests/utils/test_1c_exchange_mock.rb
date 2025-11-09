@@ -1,3 +1,4 @@
+# encoding: utf-8
 #!/usr/bin/env ruby
 # encoding: utf-8
 # Mock testing script for 1C Exchange API
