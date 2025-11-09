@@ -5,6 +5,7 @@ require 'uri'
 require 'fileutils'
 require 'json'
 require 'mini_magick'
+require 'stringio'
 
 # Глобальные переменные для хранения ссылок на потоки
 $thread_running = false
@@ -142,6 +143,13 @@ Rozario::App.controllers :api do
   helpers do
     def processing_all_images(all_images, id_1C, overwrite=true)
       result = []
+      
+      # Валидация данных изображений
+      temp_log = StringIO.new
+      unless validate_image_data(all_images, id_1C, temp_log)
+        result.append("Ошибка валидации данных изображений: #{temp_log.string}")
+        return result
+      end
 
       destination                 = "/srv/rozarioflowers.ru/public/product_images/#{id_1C}/"
       destination_webp            = "/srv/grunt/webp/product_images/#{id_1C}/"
@@ -149,7 +157,7 @@ Rozario::App.controllers :api do
 
       [destination, destination_webp, destination_webp_thumbnails].each { |path| Pathname.new(path).mkpath } # Создаём нужные папки
 
-      all_images.each { |img| # Обрабатываем каждое изображение из JSON
+      all_images.each_with_index { |img, img_index| # Обрабатываем каждое изображение из JSON
         begin
           uri = URI.parse(img['url']); path = uri.path # Разбираем URL на компоненты
           filename = File.basename(path)
@@ -159,19 +167,56 @@ Rozario::App.controllers :api do
           webp_thumbnail_filepath = File.join(destination_webp_thumbnails, webp_filename)
 
           if !File.exist?(file_path) || overwrite
-            image_data = Net::HTTP.get_response(uri).body # Скачиваем изображение
-            File.open(file_path, 'wb') { |f| f.write(image_data) } # Сохраняем изображение в папку назначения с сохранением имени файла
+            # Скачивание с таймаутом и проверкой размера
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = (uri.scheme == 'https')
+            http.open_timeout = 10
+            http.read_timeout = 30
+            
+            response = http.get(uri.path)
+            
+            if response.code.to_i != 200
+              result.append("Ошибка скачивания изображения #{filename}: HTTP #{response.code}")
+              next
+            end
+            
+            image_data = response.body
+            
+            # Проверка размера файла (макс 10МБ)
+            if image_data.bytesize > 10 * 1024 * 1024
+              result.append("Ошибка: изображение #{filename} слишком большое (#{(image_data.bytesize.to_f / (1024*1024)).round(2)}МБ)")
+              next
+            end
+            
+            File.open(file_path, 'wb') { |f| f.write(image_data) } # Сохраняем изображение
+            
+            # Валидация сохраненного файла
+            validation_result = validate_file_safety(file_path)
+            unless validation_result[:valid]
+              File.delete(file_path) if File.exist?(file_path)
+              result.append("Ошибка валидации файла #{filename}: #{validation_result[:error]}")
+              next
+            end
           end
 
           if !File.exist?(webp_filepath) || overwrite # Конвертипровать в WebP
-            image = MiniMagick::Image.open(file_path)
-            image.format 'webp'
-            image.write(webp_filepath)
+            begin
+              image = MiniMagick::Image.open(file_path)
+              image.format 'webp'
+              image.write(webp_filepath)
+            rescue MiniMagick::Error => e
+              result.append("Ошибка конвертации в WebP #{filename}: #{e.message}")
+              next
+            end
           end
 
           if !File.exist?(webp_thumbnail_filepath) || overwrite # Создать миниатюру (thumbnail)
-            create_thumbnail(webp_filepath, webp_thumbnail_filepath, 300)
-            result.append("Обработано изображение: #{filename}")
+            begin
+              create_thumbnail(webp_filepath, webp_thumbnail_filepath, 300)
+              result.append("Обработано изображение: #{filename}")
+            rescue => e
+              result.append("Ошибка создания миниатюры #{filename}: #{e.message}")
+            end
           end
         rescue => e
           result.append("Ошибка обработки изображения #{img['url']}: #{e.message}")
@@ -184,12 +229,297 @@ Rozario::App.controllers :api do
       image.resize "#{size}x#{size}>"
       image.write(destination_path)
     end
+
+    # === VALIDATION HELPERS ===
+    
+    def validate_1c_response_structure(response_data, log)
+      required_fields = ['etag', 'data', 'pending', 'updated_at']
+      missing_fields = required_fields.select { |field| !response_data.key?(field) }
+      
+      if !missing_fields.empty?
+        log.puts "[VALIDATION ERROR] Missing required fields in 1C response: #{missing_fields.join(', ')}"
+        return false
+      end
+      
+      unless response_data['data'].is_a?(Array)
+        log.puts "[VALIDATION ERROR] 'data' field must be an array, got: #{response_data['data'].class}"
+        return false
+      end
+      
+      unless response_data['pending'].to_s.match?(/^\d+$/)
+        log.puts "[VALIDATION ERROR] 'pending' field must be a number, got: #{response_data['pending']}"
+        return false
+      end
+      
+      log.puts "[VALIDATION OK] 1C response structure is valid"
+      return true
+    end
+    
+    def validate_product_data(product_data, index, log)
+      required_fields = {
+        'product_id' => { type: String, max_length: 100 },
+        'title' => { type: String, max_length: 500 },
+        'text' => { type: String, max_length: 10000 },
+        'categories' => { type: String, max_length: 1000 },
+        'price' => { type: [String, Numeric], max_value: 999999.99 }
+      }
+      
+      optional_fields = {
+        'size' => { type: String, max_length: 200 },
+        'package' => { type: String, max_length: 500 },
+        'components' => { type: String, max_length: 2000 },
+        'color' => { type: String, max_length: 100 },
+        'recipient' => { type: String, max_length: 200 },
+        'reason' => { type: String, max_length: 200 },
+        'price_1990' => { type: [String, Numeric], max_value: 999999.99 },
+        'price_2890' => { type: [String, Numeric], max_value: 999999.99 },
+        'price_3790' => { type: [String, Numeric], max_value: 999999.99 },
+        'discounts' => { type: [String, Array, Hash] },
+        'main_image' => { type: [String, Array, Hash] },
+        'all_images' => { type: [String, Array] }
+      }
+      
+      # Проверка обязательных полей
+      required_fields.each do |field, rules|
+        if !product_data.key?(field) || product_data[field].nil? || product_data[field].to_s.strip.empty?
+          log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Missing required field: #{field}"
+          return false
+        end
+        
+        unless validate_field_type_and_constraints(product_data[field], field, rules, index, log)
+          return false
+        end
+      end
+      
+      # Проверка опциональных полей
+      optional_fields.each do |field, rules|
+        if product_data.key?(field) && !product_data[field].nil?
+          unless validate_field_type_and_constraints(product_data[field], field, rules, index, log)
+            return false
+          end
+        end
+      end
+      
+      # Дополнительные проверки
+      unless validate_product_id_format(product_data['product_id'], index, log)
+        return false
+      end
+      
+      unless validate_categories_format(product_data['categories'], index, log)
+        return false
+      end
+      
+      unless validate_title_format(product_data['title'], index, log)
+        return false
+      end
+      
+      log.puts "[VALIDATION OK][ITEM #{index + 1}] Product data is valid for ID: #{product_data['product_id']}"
+      return true
+    end
+    
+    def validate_field_type_and_constraints(value, field_name, rules, index, log)
+      # Проверка типа
+      allowed_types = Array(rules[:type])
+      unless allowed_types.any? { |type| value.is_a?(type) }
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Field '#{field_name}' must be #{allowed_types.map(&:name).join(' or ')}, got: #{value.class.name}"
+        return false
+      end
+      
+      # Проверка максимальной длины для строк
+      if rules[:max_length] && value.is_a?(String) && value.length > rules[:max_length]
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Field '#{field_name}' exceeds maximum length of #{rules[:max_length]} characters (got: #{value.length})"
+        return false
+      end
+      
+      # Проверка максимального значения для чисел
+      if rules[:max_value] && (value.is_a?(Numeric) || value.to_s.match?(/^\d+(\.\d+)?$/)) && value.to_f > rules[:max_value]
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Field '#{field_name}' exceeds maximum value of #{rules[:max_value]} (got: #{value})"
+        return false
+      end
+      
+      return true
+    end
+    
+    def validate_product_id_format(product_id, index, log)
+      # 1С ID должен быть в определенном формате
+      unless product_id.match?(/^[a-zA-Z0-9_-]+$/)
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Product ID contains invalid characters: #{product_id}"
+        return false
+      end
+      
+      return true
+    end
+    
+    def validate_categories_format(categories, index, log)
+      # Категории разделены точкой с запятой
+      category_list = categories.split(';')
+      
+      if category_list.empty?
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Categories cannot be empty"
+        return false
+      end
+      
+      category_list.each do |category|
+        category_name = category.strip
+        if category_name.empty?
+          log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Found empty category in list: #{categories}"
+          return false
+        end
+        
+        if category_name.length > 100
+          log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Category name too long: #{category_name}"
+          return false
+        end
+      end
+      
+      return true
+    end
+    
+    def validate_title_format(title, index, log)
+      # Заголовок должен содержать тип комплекта в скобках
+      bracket_matches = title.scan(/.*?\(([^)]+)\)/)
+      
+      if bracket_matches.empty?
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Title must contain complect type in brackets: #{title}"
+        return false
+      end
+      
+      complect_type = bracket_matches.last[0].strip
+      if complect_type.empty?
+        log.puts "[VALIDATION ERROR][ITEM #{index + 1}] Complect type in brackets cannot be empty: #{title}"
+        return false
+      end
+      
+      return true
+    end
+    
+    def validate_image_data(all_images, id_1C, log)
+      unless all_images.is_a?(Array)
+        log.puts "[VALIDATION ERROR] Images data must be an array for product #{id_1C}, got: #{all_images.class}"
+        return false
+      end
+      
+      if all_images.length > 50  # Ограничение на количество изображений
+        log.puts "[VALIDATION ERROR] Too many images for product #{id_1C}: #{all_images.length} (max: 50)"
+        return false
+      end
+      
+      all_images.each_with_index do |img_data, index|
+        unless validate_single_image_data(img_data, id_1C, index, log)
+          return false
+        end
+      end
+      
+      log.puts "[VALIDATION OK] Images data is valid for product #{id_1C} (#{all_images.length} images)"
+      return true
+    end
+    
+    def validate_single_image_data(img_data, id_1C, index, log)
+      unless img_data.is_a?(Hash)
+        log.puts "[VALIDATION ERROR] Image data must be a hash for product #{id_1C}, image #{index + 1}, got: #{img_data.class}"
+        return false
+      end
+      
+      unless img_data.key?('url') && img_data['url'].is_a?(String) && !img_data['url'].strip.empty?
+        log.puts "[VALIDATION ERROR] Image must have valid URL for product #{id_1C}, image #{index + 1}"
+        return false
+      end
+      
+      url = img_data['url'].strip
+      
+      # Проверка URL формата
+      begin
+        uri = URI.parse(url)
+        unless uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
+          log.puts "[VALIDATION ERROR] Image URL must be HTTP/HTTPS for product #{id_1C}, image #{index + 1}: #{url}"
+          return false
+        end
+      rescue URI::InvalidURIError => e
+        log.puts "[VALIDATION ERROR] Invalid image URL for product #{id_1C}, image #{index + 1}: #{url} - #{e.message}"
+        return false
+      end
+      
+      # Проверка расширения файла
+      allowed_extensions = %w[.jpg .jpeg .png .gif .bmp .webp]
+      file_extension = File.extname(URI.parse(url).path).downcase
+      
+      unless allowed_extensions.include?(file_extension)
+        log.puts "[VALIDATION ERROR] Unsupported image format for product #{id_1C}, image #{index + 1}: #{file_extension} (allowed: #{allowed_extensions.join(', ')})"
+        return false
+      end
+      
+      # Проверка имени файла на безопасность
+      filename = File.basename(URI.parse(url).path)
+      if filename.include?('..') || filename.include?('/') || filename.include?('\\')
+        log.puts "[VALIDATION ERROR] Unsafe filename for product #{id_1C}, image #{index + 1}: #{filename}"
+        return false
+      end
+      
+      return true
+    end
+    
+    def validate_file_safety(file_path, max_size_mb = 10)
+      unless File.exist?(file_path)
+        return { valid: false, error: "File does not exist: #{file_path}" }
+      end
+      
+      file_size_mb = File.size(file_path).to_f / (1024 * 1024)
+      if file_size_mb > max_size_mb
+        return { valid: false, error: "File too large: #{file_size_mb.round(2)}MB (max: #{max_size_mb}MB)" }
+      end
+      
+      # Проверка MIME типа с помощью MiniMagick
+      begin
+        image = MiniMagick::Image.open(file_path)
+        allowed_formats = %w[JPEG PNG GIF BMP WEBP]
+        unless allowed_formats.include?(image.type)
+          return { valid: false, error: "Unsupported image format: #{image.type}" }
+        end
+        
+        # Проверка разрешения
+        if image.width > 5000 || image.height > 5000
+          return { valid: false, error: "Image dimensions too large: #{image.width}x#{image.height} (max: 5000x5000)" }
+        end
+        
+      rescue MiniMagick::Error => e
+        return { valid: false, error: "Invalid image file: #{e.message}" }
+      end
+      
+      return { valid: true }
+    end
     def recursive_http_request(http, request, attempts_number)
-      response = http.request(request)
-      if response.is_a?(Net::HTTPSuccess) || attempts_number == 1; return response 
-      else
-        sleep(1)
-        return recursive_http_request(http, request, attempts_number - 1)
+      # Настройка таймаутов для безопасности
+      http.open_timeout = 10
+      http.read_timeout = 30
+      
+      begin
+        response = http.request(request)
+        if response.is_a?(Net::HTTPSuccess) || attempts_number == 1
+          return response 
+        else
+          sleep(1)
+          return recursive_http_request(http, request, attempts_number - 1)
+        end
+      rescue Net::TimeoutError, Net::ReadTimeout, Net::OpenTimeout => e
+        if attempts_number > 1
+          sleep(2)
+          return recursive_http_request(http, request, attempts_number - 1)
+        else
+          # Создаем объект ответа для ошибки таймаута
+          error_response = Net::HTTPRequestTimeOut.new('1.1', '408', 'Request Timeout')
+          error_response.instance_variable_set(:@body, "Timeout error: #{e.message}")
+          return error_response
+        end
+      rescue => e
+        if attempts_number > 1
+          sleep(2)
+          return recursive_http_request(http, request, attempts_number - 1)
+        else
+          # Создаем объект ответа для общей ошибки
+          error_response = Net::HTTPInternalServerError.new('1.1', '500', 'Internal Server Error')
+          error_response.instance_variable_set(:@body, "Network error: #{e.message}")
+          return error_response
+        end
       end
     end
     def transliterate(text)
@@ -221,6 +551,14 @@ Rozario::App.controllers :api do
         
         ActiveRecord::Base.transaction do
           data.each_with_index { |x, index|
+            # Валидация данных товара
+            unless validate_product_data(x, index, log)
+              log.puts "[ITEM #{index + 1}] ❌ SKIPPED: Некорректные данные товара"
+              error_count += 1
+              processed_count += 1
+              next
+            end
+            
             str = x['title']
             product_1c_id = x['product_id']
             
@@ -261,7 +599,8 @@ Rozario::App.controllers :api do
                 # Обработка изображений
                 if x['all_images'] && !x['all_images'].empty?
                   log.puts "[ITEM #{index + 1}] → Обработка #{x['all_images'].length rescue 'N/A'} изображений"
-                  processing_all_images(x['all_images'], product_1c_id)
+                  image_results = processing_all_images(x['all_images'], product_1c_id)
+                  image_results.each { |result| log.puts "[ITEM #{index + 1}] #{result}" }
                 end
                 
                 # Создание продукта
@@ -512,13 +851,32 @@ Rozario::App.controllers :api do
             response_code = response.code.to_i # Получить код ответа от сервера.
 
             if response_code == 200 # Если код ответа 200 (успешный)...
-              response_data = JSON.parse(response.body) # Парсим JSON-ответ.
+              begin
+                response_data = JSON.parse(response.body) # Парсим JSON-ответ.
+              rescue JSON::ParserError => e
+                ok = false
+                log.puts "[VALIDATION ERROR] Invalid JSON response from 1C server: #{e.message}"
+                log.puts "[VALIDATION ERROR] Response body preview: #{response.body[0..200]}..."
+                break
+              end
+              
+              # Валидация структуры ответа
+              unless validate_1c_response_structure(response_data, log)
+                ok = false
+                break
+              end
+              
               etag       = response_data['etag']       # Извлечь etag из данных из ответа.
               updated_at = response_data['updated_at'] # Извлечь дату обновления из ответа.
               data       = response_data['data']       # Извлечь данные из ответа.
               pending    = response_data['pending'].to_i - data.length # Рассчитать оставшееся количество элементов (не удалось достучаться до разработчика 1С, чтобы реализовать это на стороне сервера).
               log.puts "Код ответа: #{response_code} | data.length: #{data.length} | etag: #{etag == '' || etag.nil? ? 'null' : etag} | updated_at: #{updated_at} | pending: #{pending}" # Логировать полученные данные
-              if pending < 0; log.puts "ERROR_gf04s0FV"; end
+              
+              if pending < 0
+                log.puts "[VALIDATION ERROR] ERROR_gf04s0FV: Negative pending count detected: #{pending}"
+                ok = false
+                break
+              end
               # n = pending if n > pending # Если запрашиваем данных больше, чем имеется в остатке, то скорректировать запрашиваемое число элементов.
               if data.length > 0
                 begin
@@ -545,7 +903,20 @@ Rozario::App.controllers :api do
                     response = recursive_http_request(http, request, 3) # Отправить запрос рекурсивно.
                     response_code = response.code.to_i # Получить код ответа.
                     if response_code == 200 # Если код ответа 200.
-                      response_data = JSON.parse(response.body) # Парсить JSON-ответ.
+                      begin
+                        response_data = JSON.parse(response.body) # Парсить JSON-ответ.
+                      rescue JSON::ParserError => e
+                        failed += 1
+                        log.puts "[VALIDATION ERROR] Invalid JSON in follow-up request #{i}: #{e.message}"
+                        next
+                      end
+                      
+                      # Валидация структуры ответа
+                      unless validate_1c_response_structure(response_data, log)
+                        failed += 1
+                        next
+                      end
+                      
                       data = response_data['data']             # Извлечь данные.
                       etag = response_data['etag']             # Извлечь etag.
                       updated_at = response_data['updated_at'] # Извлечь дату обновления.
