@@ -143,11 +143,14 @@ Rozario::App.controllers :api do
   helpers do
     def processing_all_images(all_images, id_1C, overwrite=true)
       result = []
+      stats = { total: all_images.length, processed: 0, downloaded: 0, converted: 0, failed: 0, skipped: 0 }
+      
+      result.append("[IMAGE_BATCH][#{id_1C}] Starting processing of #{stats[:total]} images")
       
       # Валидация данных изображений
       temp_log = StringIO.new
       unless validate_image_data(all_images, id_1C, temp_log)
-        result.append("Ошибка валидации данных изображений: #{temp_log.string}")
+        result.append("[IMAGE_BATCH][#{id_1C}] ❌ Image data validation failed: #{temp_log.string.strip}")
         return result
       end
 
@@ -158,6 +161,7 @@ Rozario::App.controllers :api do
       [destination, destination_webp, destination_webp_thumbnails].each { |path| Pathname.new(path).mkpath } # Создаём нужные папки
 
       all_images.each_with_index { |img, img_index| # Обрабатываем каждое изображение из JSON
+        image_id = "#{id_1C}/#{img_index + 1}"
         begin
           uri = URI.parse(img['url']); path = uri.path # Разбираем URL на компоненты
           filename = File.basename(path)
@@ -166,7 +170,20 @@ Rozario::App.controllers :api do
           webp_filepath = File.join(destination_webp, webp_filename)
           webp_thumbnail_filepath = File.join(destination_webp_thumbnails, webp_filename)
 
+          result.append("[IMAGE][#{image_id}] Processing: #{filename}")
+
           if !File.exist?(file_path) || overwrite
+            # Предварительная проверка размера и типа файла с HEAD запросом
+            pre_check_result = validate_image_before_download(uri, filename, image_id)
+            unless pre_check_result[:valid]
+              result.append("[IMAGE][#{image_id}] ⚠️ SKIPPED: #{pre_check_result[:error]}")
+              stats[:skipped] += 1
+              next
+            end
+            if pre_check_result[:warning]
+              result.append("[IMAGE][#{image_id}] ⚠️ #{pre_check_result[:warning]}")
+            end
+            
             # Улучшенное скачивание с retry логикой
             download_success = false
             max_download_attempts = 3
@@ -187,9 +204,10 @@ Rozario::App.controllers :api do
                 if response.code.to_i == 200
                   image_data = response.body
                   
-                  # Проверка размера файла
+                  # Проверка размера файла после скачивания
                   if image_data.bytesize > 10 * 1024 * 1024
-                    result.append("Ошибка: изображение #{filename} слишком большое (#{(image_data.bytesize.to_f / (1024*1024)).round(2)}МБ)")
+                    result.append("[IMAGE][#{image_id}] ❌ File too large after download: #{(image_data.bytesize.to_f / (1024*1024)).round(2)}MB (max: 10MB)")
+                    stats[:failed] += 1
                     break
                   end
                   
@@ -198,26 +216,29 @@ Rozario::App.controllers :api do
                   File.open(temp_file_path, 'wb') { |f| f.write(image_data) }
                   File.rename(temp_file_path, file_path)
                   
-                  result.append("✓ Скачан #{filename} (#{(image_data.bytesize.to_f / 1024).round(1)}КБ, #{download_time}ms)")
+                  result.append("[IMAGE][#{image_id}] ✓ Downloaded: #{(image_data.bytesize.to_f / 1024).round(1)}KB in #{download_time}ms")
                   download_success = true
+                  stats[:downloaded] += 1
                   break
                   
                 elsif is_retryable_http_status?(response.code.to_i) && attempt < max_download_attempts
-                  result.append("⚠️ Попытка #{attempt}: HTTP #{response.code} для #{filename}, повторяем...")
+                  result.append("[IMAGE][#{image_id}] ⚠️ Retry #{attempt}/#{max_download_attempts}: HTTP #{response.code}, retrying...")
                   sleep(calculate_retry_delay(attempt, 1, 5))
                   next
                 else
-                  result.append("❌ Ошибка скачивания #{filename}: HTTP #{response.code}")
+                  result.append("[IMAGE][#{image_id}] ❌ Download failed: HTTP #{response.code}")
+                  stats[:failed] += 1
                   break
                 end
                 
               rescue => e
                 if is_retryable_error?(e) && attempt < max_download_attempts
-                  result.append("⚠️ Попытка #{attempt}: #{e.class.name} для #{filename}, повторяем...")
+                  result.append("[IMAGE][#{image_id}] ⚠️ Retry #{attempt}/#{max_download_attempts}: #{e.class.name} - #{e.message}")
                   sleep(calculate_retry_delay(attempt, 1, 5))
                   next
                 else
-                  result.append("❌ Критическая ошибка скачивания #{filename}: #{e.message}")
+                  result.append("[IMAGE][#{image_id}] ❌ Critical download error: #{e.class.name} - #{e.message}")
+                  stats[:failed] += 1
                   break
                 end
               ensure
@@ -236,9 +257,12 @@ Rozario::App.controllers :api do
             validation_result = validate_file_safety(file_path)
             unless validation_result[:valid]
               File.delete(file_path) if File.exist?(file_path)
-              result.append("❌ Ошибка валидации файла #{filename}: #{validation_result[:error]}")
+              result.append("[IMAGE][#{image_id}] ❌ Post-download validation failed: #{validation_result[:error]}")
+              stats[:failed] += 1
               next
             end
+          else
+            result.append("[IMAGE][#{image_id}] ✓ File already exists, skipping download")
           end
 
           if !File.exist?(webp_filepath) || overwrite # Конвертипровать в WebP
@@ -246,24 +270,44 @@ Rozario::App.controllers :api do
               image = MiniMagick::Image.open(file_path)
               image.format 'webp'
               image.write(webp_filepath)
+              result.append("[IMAGE][#{image_id}] ✓ Converted to WebP")
             rescue MiniMagick::Error => e
-              result.append("Ошибка конвертации в WebP #{filename}: #{e.message}")
+              result.append("[IMAGE][#{image_id}] ❌ WebP conversion failed: #{e.message}")
+              stats[:failed] += 1
               next
             end
+          else
+            result.append("[IMAGE][#{image_id}] ✓ WebP file already exists, skipping conversion")
           end
 
           if !File.exist?(webp_thumbnail_filepath) || overwrite # Создать миниатюру (thumbnail)
             begin
               create_thumbnail(webp_filepath, webp_thumbnail_filepath, 300)
-              result.append("Обработано изображение: #{filename}")
+              result.append("[IMAGE][#{image_id}] ✓ Thumbnail created")
+              stats[:converted] += 1
             rescue => e
-              result.append("Ошибка создания миниатюры #{filename}: #{e.message}")
+              result.append("[IMAGE][#{image_id}] ❌ Thumbnail creation failed: #{e.message}")
+              stats[:failed] += 1
             end
+          else
+            result.append("[IMAGE][#{image_id}] ✓ Thumbnail already exists, skipping creation")
           end
+          
+          stats[:processed] += 1
+          result.append("[IMAGE][#{image_id}] ✅ Processing complete")
+          
         rescue => e
-          result.append("Ошибка обработки изображения #{img['url']}: #{e.message}")
+          result.append("[IMAGE][#{image_id}] ❌ Unexpected error: #{e.class.name} - #{e.message}")
+          result.append("[IMAGE][#{image_id}] ❌ Backtrace: #{e.backtrace.first(3).join(' | ')}")
+          stats[:failed] += 1
         end
       }
+      
+      # Финальная статистика
+      success_rate = stats[:total] > 0 ? ((stats[:processed].to_f / stats[:total]) * 100).round(1) : 0
+      result.append("[IMAGE_BATCH][#{id_1C}] ✅ Processing complete")
+      result.append("[IMAGE_BATCH][#{id_1C}] 📊 Stats: #{stats[:total]} total, #{stats[:processed]} processed (#{success_rate}%), #{stats[:downloaded]} downloaded, #{stats[:converted]} converted, #{stats[:failed]} failed, #{stats[:skipped]} skipped")
+      
       return result
     end
     def create_thumbnail(source_path, destination_path, size) # Метод для создания миниатюры
@@ -498,6 +542,54 @@ Rozario::App.controllers :api do
       end
       
       return true
+    end
+    
+    # Предварительная проверка изображения с HEAD запросом
+    def validate_image_before_download(uri, filename, image_id)
+      begin
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = (uri.scheme == 'https')
+        configure_http_timeouts(http, 5, 10)  # Более короткие таймауты для HEAD запросов
+        
+        head_request = Net::HTTP::Head.new(uri.request_uri)
+        head_request['User-Agent'] = 'RozarioFlowers-ImageBot/1.0'
+        
+        response = http.request(head_request)
+        
+        if response.code.to_i != 200
+          return { valid: false, error: "HEAD request failed: HTTP #{response.code}" }
+        end
+        
+        # Проверка Content-Length (если доступен)
+        if response['content-length']
+          content_length = response['content-length'].to_i
+          if content_length > 10 * 1024 * 1024  # 10MB
+            return { valid: false, error: "File too large: #{(content_length.to_f / (1024*1024)).round(2)}MB (max: 10MB)" }
+          end
+        end
+        
+        # Проверка Content-Type (если доступен)
+        if response['content-type']
+          content_type = response['content-type'].downcase
+          allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/webp']
+          unless allowed_types.any? { |type| content_type.include?(type) }
+            return { valid: false, error: "Invalid content type: #{content_type}" }
+          end
+        end
+        
+        # Проверка расширения файла
+        allowed_extensions = %w[.jpg .jpeg .png .gif .bmp .webp]
+        file_extension = File.extname(filename).downcase
+        unless allowed_extensions.include?(file_extension)
+          return { valid: false, error: "Invalid file extension: #{file_extension}" }
+        end
+        
+        return { valid: true }
+        
+      rescue => e
+        # HEAD запрос не удался - не критично, продолжаем со скачиванием
+        return { valid: true, warning: "HEAD request failed (#{e.class.name}), proceeding with download" }
+      end
     end
     
     def validate_file_safety(file_path, max_size_mb = 10)
@@ -815,9 +907,14 @@ Rozario::App.controllers :api do
                 
                 # Обработка изображений
                 if x['all_images'] && !x['all_images'].empty?
-                  log.puts "[ITEM #{index + 1}] → Обработка #{x['all_images'].length rescue 'N/A'} изображений"
+                  log.puts "[ITEM #{index + 1}] → Processing #{x['all_images'].length rescue 'N/A'} images"
                   image_results = processing_all_images(x['all_images'], product_1c_id)
-                  image_results.each { |result| log.puts "[ITEM #{index + 1}] #{result}" }
+                  # Выводим только summary статистику и ошибки для компактности
+                  image_results.each do |result|
+                    if result.include?('[IMAGE_BATCH]') || result.include?('❌') || result.include?('⚠️')
+                      log.puts "[ITEM #{index + 1}] #{result}"
+                    end
+                  end
                 end
                 
                 # Создание продукта
