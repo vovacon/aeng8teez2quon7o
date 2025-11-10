@@ -1129,14 +1129,33 @@ Rozario::App.controllers :api do
     # curl -X GET https://server-1c.rdp.rozarioflowers.ru/exchange/hs/api/prices/status
     content_type :json
 
+    # Генерируем уникальный ID запроса для email отчётов
+    request_id = generate_request_id
+    request_start_time = Time.now
+    
     log_path = "#{PADRINO_ROOT}/log/1c_notify_update.log"
 
     if $thread_mutex.synchronize { $thread_running } # Проверить, запущен ли поток.
+      conflict_message = "Конфликт при запуске потока. Поток уже запущен ранее..."
       File.open(log_path, 'a') do |log|
-        log.puts "--> #{Time.now} - Конфликт при запуске потока. Поток уже запущен ранее..."
+        log.puts "--> #{Time.now} - #{conflict_message}"
       end
+      
+      # Отправляем email отчёт об ошибке конфликта
+      error_details = {
+        type: 'Concurrent Access Conflict',
+        message: 'Attempt to start 1C synchronization while another process is already running',
+        code: 'CONFLICT_409',
+        duration: ((Time.now - request_start_time) * 1000).round(2),
+        processed_items: 0,
+        failed_items: 'N/A',
+        http_requests: 0
+      }
+      
+      send_1c_error_report(request_id, error_details, extract_log_excerpt(log_path))
+      
       status 409 # Конфликт.
-      return {message: "The process is already underway", status: "error"}.to_json
+      return {message: "The process is already underway", status: "error", request_id: request_id}.to_json
     end
 
     begin
@@ -1146,6 +1165,12 @@ Rozario::App.controllers :api do
           File.open(log_path, 'a') do |log| # Открываем лог-файл для записи.
             
             ok = true # Praesumptio.
+            
+            # Счетчики для статистики email отчетов
+            processed_items_count = 0
+            http_requests_count = 0
+            warnings_list = []
+            thread_start_time = Time.now
 
             # Записываем в лог начало процесса.
             log.puts "Начало процесса..." # Логируем время начала процесса.
@@ -1168,6 +1193,7 @@ Rozario::App.controllers :api do
             
             log.puts "[HTTP] Отправка начального запроса на 1С сервер..."
             response = enhanced_http_request(http, request, 5, "initial_request", log) # Улучшенная обработка
+            http_requests_count += 1 # Увеличиваем счётчик HTTP запросов
             response_code = response.code.to_i # Получить код ответа от сервера.
 
             if response_code == 200 # Если код ответа 200 (успешный)...
@@ -1209,6 +1235,7 @@ Rozario::App.controllers :api do
                   
                   if transaction_result
                     log.puts "[INITIAL_BATCH] ✓ Транзакция успешно завершена за #{transaction_duration}ms"
+                    processed_items_count += data.length # Обновляем счётчик обработанных элементов
                   else
                     log.puts "[INITIAL_BATCH] ❌ Ошибка транзакции за #{transaction_duration}ms"
                     ok = false
@@ -1241,6 +1268,7 @@ Rozario::App.controllers :api do
                     
                     # Меньше повторов для batch запросов
                     response = enhanced_http_request(http, request, 3, "batch_request_#{i}", log)
+                    http_requests_count += 1 # Увеличиваем счётчик HTTP запросов
                     response_code = response.code.to_i # Получить код ответа.
                     if response_code == 200 # Если код ответа 200.
                       begin
@@ -1266,6 +1294,7 @@ Rozario::App.controllers :api do
                         transaction_success = crud_product_complects_transaction(data, log)
                         if transaction_success
                           log.puts "[BATCH] ✓ Транзакция успешно завершена для batch #{i}"
+                          processed_items_count += data.length # Обновляем счётчик обработанных элементов
                           i += 1
                           failed = 0 # Сбросить счетчик ошибок после успеха
                         else
@@ -1323,6 +1352,7 @@ Rozario::App.controllers :api do
               end
               
               notify_response = enhanced_http_request(http, notify_request, 2, "notification", log)
+              http_requests_count += 1 # Увеличиваем счётчик HTTP запросов (уведомление)
               notify_code = notify_response.code.to_i
               
               if notify_code == 200
@@ -1337,6 +1367,27 @@ Rozario::App.controllers :api do
             rescue => e
               log.puts "[NOTIFICATION] ❌ Критическая ошибка уведомления: #{e.class.name}: #{e.message}"
             end
+            # Отправляем email отчёт в зависимости от результата
+            if ok
+              # Успешное завершение
+              statistics = collect_success_statistics(thread_start_time, processed_items_count, http_requests_count, warnings_list)
+              send_1c_success_report(request_id, statistics)
+              log.puts "[EMAIL] Отправлен email отчёт об успешном завершении: #{request_id}"
+            else
+              # Ошибка в процессе
+              error_details = {
+                type: '1C Synchronization Process Error',
+                message: 'The synchronization process completed with errors. Check logs for details.',
+                code: 'SYNC_PROCESS_ERROR',
+                duration: ((Time.now - thread_start_time) * 1000).round(2),
+                processed_items: processed_items_count,
+                failed_items: 'See logs',
+                http_requests: http_requests_count
+              }
+              send_1c_error_report(request_id, error_details, extract_log_excerpt(log_path))
+              log.puts "[EMAIL] Отправлен email отчёт об ошибке: #{request_id}"
+            end
+            
             log.puts "Конец." # Логировать завершение процесса.
           end
         rescue => e
@@ -1347,6 +1398,15 @@ Rozario::App.controllers :api do
               log.puts "[THREAD_ERROR]   #{i+1}. #{line}"
             end
           end
+          
+          # Отправляем email отчёт о критической ошибке
+          error_context = {
+            duration: ((Time.now - request_start_time) * 1000).round(2),
+            processed_items: processed_items_count || 0,
+            http_requests: http_requests_count || 0,
+            error_code: 'THREAD_CRITICAL_ERROR'
+          }
+          send_1c_error_report(request_id, format_error_details(e, error_context), extract_log_excerpt(log_path))
         ensure
           File.open(log_path, 'a') do |log|
             log.puts "[THREAD_CLEANUP] Зачистка ресурсов потока..."
@@ -1368,9 +1428,21 @@ Rozario::App.controllers :api do
     rescue => e
       File.open(log_path, 'a') do |log|
         log.puts "--> #{Time.now} - Общая ошибка при выполнении потока."
+        log.puts "Error: #{e.class.name}: #{e.message}"
+        log.puts "Backtrace: #{e.backtrace.first(5).join('; ')}" if e.backtrace
       end
+      
+      # Отправляем email отчёт о общей ошибке
+      error_context = {
+        duration: ((Time.now - request_start_time) * 1000).round(2),
+        processed_items: 0, # На этом уровне счётчики недоступны
+        http_requests: 0,   # На этом уровне счётчики недоступны
+        error_code: 'GENERAL_THREAD_ERROR'
+      }
+      send_1c_error_report(request_id, format_error_details(e, error_context), extract_log_excerpt(log_path))
+      
       status 500 # Внутренняя ошибка сервера
-      return {message: "An error occurred: #{e.message}", status: "error"}.to_json # Вернуть сообщение об ошибке.
+      return {message: "An error occurred: #{e.message}", status: "error", request_id: request_id}.to_json # Вернуть сообщение об ошибке.
     end
     File.open(log_path, 'a') do |log|
       log.puts "--> #{Time.now} - Запущен поток."
@@ -2079,6 +2151,126 @@ Rozario::App.controllers :api do
       status 500
       return { error: 'Внутренняя ошибка сервера' }.to_json
     end
+  end
+
+  # Вспомогательные функции для отправки email отчётов о 1C интеграции
+  private
+  
+  # Отправляет email отчёт об ошибке администратору
+  def send_1c_error_report(request_id, error_details, log_excerpt = nil)
+    return unless should_send_email_reports?
+    
+    timestamp = Time.now.strftime('%d.%m.%Y %H:%M:%S')
+    
+    Thread.new do
+      begin
+        puts "[1C_EMAIL] Отправка email отчёта об ошибке: #{request_id}"
+        
+        deliver(:mail_1c_error_report, :error_report, 
+               request_id, timestamp, error_details, log_excerpt)
+        
+        puts "[1C_EMAIL] ✅ Email отчёт об ошибке отправлен успешно: #{request_id}"
+      rescue => e
+        puts "[1C_EMAIL] ❌ Ошибка отправки email отчёта: #{e.class.name}: #{e.message}"
+        puts "[1C_EMAIL] Получатель: #{ENV['ADMIN_EMAIL']}"
+      end
+    end
+  end
+  
+  # Отправляет email отчёт об успешном завершении администратору
+  def send_1c_success_report(request_id, statistics)
+    return unless should_send_email_reports?
+    return unless should_send_success_reports? # Отправляем только если включено
+    
+    timestamp = Time.now.strftime('%d.%m.%Y %H:%M:%S')
+    
+    Thread.new do
+      begin
+        puts "[1C_EMAIL] Отправка email отчёта об успехе: #{request_id}"
+        
+        deliver(:mail_1c_error_report, :success_report,
+               request_id, timestamp, statistics)
+        
+        puts "[1C_EMAIL] ✅ Email отчёт об успехе отправлен: #{request_id}"
+      rescue => e
+        puts "[1C_EMAIL] ❌ Ошибка отправки успешного отчёта: #{e.class.name}: #{e.message}"
+        puts "[1C_EMAIL] Получатель: #{ENV['ADMIN_EMAIL']}"
+      end
+    end
+  end
+  
+  # Проверяет, следует ли отправлять email отчёты
+  def should_send_email_reports?
+    admin_email = ENV['ADMIN_EMAIL'].to_s
+    if admin_email.empty?
+      puts "[1C_EMAIL] ⚠️  ADMIN_EMAIL не установлен, email отчёты отключены"
+      return false
+    end
+    
+    # Проверяем флаг отключения в production (если установлен)
+    if ENV['DISABLE_1C_EMAIL_REPORTS'] == 'true'
+      puts "[1C_EMAIL] ⚠️  Email отчёты отключены через DISABLE_1C_EMAIL_REPORTS"
+      return false
+    end
+    
+    true
+  end
+  
+  # Проверяет, следует ли отправлять отчёты об успехе (обычно только ошибки)
+  def should_send_success_reports?
+    ENV['SEND_1C_SUCCESS_REPORTS'] == 'true'
+  end
+  
+  # Извлекает последние строки из лога для включения в отчёт
+  def extract_log_excerpt(log_path, lines = 20)
+    return nil unless File.exist?(log_path)
+    
+    begin
+      File.readlines(log_path).last(lines).join
+    rescue => e
+      puts "[1C_EMAIL] Ошибка чтения лога для отчёта: #{e.message}"
+      nil
+    end
+  end
+  
+  # Генерирует уникальный ID запроса для отслеживания
+  def generate_request_id
+    "1C_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
+  end
+  
+  # Собирает статистику для успешных отчётов
+  def collect_success_statistics(start_time, processed_items, http_requests, warnings = [])
+    duration = ((Time.now - start_time) * 1000).round(2) rescue 'N/A'
+    
+    {
+      total_duration: "#{duration / 1000.0}s",
+      processed_items: processed_items,
+      http_requests: http_requests,
+      batches_processed: (http_requests - 1), # -1 для начального запроса
+      updated_products: processed_items, # Примерно равно обработанным
+      data_transfer_mb: 'N/A', # Можно добавить подсчёт если нужно
+      warnings: warnings,
+      performance_metrics: {
+        items_per_second: processed_items > 0 && duration > 0 ? (processed_items / (duration / 1000.0)).round(2) : 'N/A',
+        avg_http_time: http_requests > 0 && duration > 0 ? (duration / http_requests).round(2) : 'N/A',
+        cpu_usage: 'N/A', # Можно добавить мониторинг если нужно
+        memory_usage: 'N/A'
+      }
+    }
+  end
+  
+  # Форматирует детали ошибки для email отчёта
+  def format_error_details(exception, context = {})
+    {
+      type: exception.class.name,
+      message: exception.message,
+      backtrace: exception.backtrace ? exception.backtrace.first(10).join("\n") : 'No backtrace available',
+      code: context[:error_code] || 'UNKNOWN',
+      duration: context[:duration] || 'N/A',
+      processed_items: context[:processed_items] || 0,
+      failed_items: context[:failed_items] || 'N/A',
+      http_requests: context[:http_requests] || 0
+    }
   end
 
 end

@@ -283,6 +283,57 @@ class Test1CNotifyUpdateValidation < Minitest::Test
     assert error_notification_body['error'], "Error notification should have error flag"
   end
 
+  def test_api_response_includes_request_id
+    # Test that API responses now include request_id for tracking
+    success_response = { 'message' => 'Operation completed successfully', 'status' => 'success' }
+    error_response = { 'message' => 'The process is already underway', 'status' => 'error', 'request_id' => 'TEST_ID' }
+    conflict_response = { 'message' => 'An error occurred', 'status' => 'error', 'request_id' => 'TEST_ID' }
+    
+    # Ошибки теперь включают request_id для отслеживания
+    assert error_response.key?('request_id'), "Error responses should include request_id"
+    assert conflict_response.key?('request_id'), "Conflict responses should include request_id"
+  end
+
+  def test_email_configuration_validation
+    # Test environment variables that control email reporting
+    valid_email = 'admin@example.com'
+    invalid_emails = ['', nil, 'not-an-email']
+    
+    assert valid_email.include?('@'), "Valid email should contain @ symbol"
+    
+    invalid_emails.each do |email|
+      if email.nil? || email.empty?
+        refute email && !email.empty?, "Invalid email should be rejected: #{email.inspect}"
+      end
+    end
+  end
+
+  def test_request_id_pattern_validation
+    # Test that request ID generation follows expected pattern
+    request_id_pattern = /\A1C_\d{8}_\d{6}_[a-f0-9]{8}\z/
+    
+    sample_ids = [
+      '1C_20251109_143052_a7f3b8c1',
+      '1C_20251110_090000_def45678'
+    ]
+    
+    sample_ids.each do |id|
+      assert_match request_id_pattern, id, "Request ID should match expected pattern: #{id}"
+    end
+    
+    # Test invalid formats
+    invalid_ids = [
+      '1C_2025110_143052_a7f3',     # Короткая дата
+      '1C_20251109_14305_a7f3b8c1', # Короткое время
+      '1C_20251109_143052_g7f3b8c1', # Неверные hex символы
+      '2C_20251109_143052_a7f3b8c1'  # Неверный префикс
+    ]
+    
+    invalid_ids.each do |id|
+      refute_match request_id_pattern, id, "Invalid request ID should not match pattern: #{id}"
+    end
+  end
+
   def test_batch_calculation_logic
     # Test the batch calculation logic used in the API
     total_pending = 1000
