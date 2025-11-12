@@ -13,7 +13,7 @@
   %br
   Current path: #{request.path_info}
   %br
-  Total price: #{cart_has_items? ? total.to_i : 0} ₽
+  Total price: #{cart_has_items? ? total.to_i : 0} rub
   %br
   Screen width: <span id="screen-width">unknown</span>
 
@@ -27,7 +27,7 @@
         В корзину
       
       .mobile-cart-panel__total-price
-        %span.mobile-cart-panel__price{ id: "cart-total-price" }= "#{total.to_i} ₽"
+        %span.mobile-cart-panel__price{ id: "cart-total-price" }= "#{total.to_i} rub"
 - else
   .mobile-cart-panel-hidden{ style: "position: fixed; bottom: 10px; left: 10px; background: #ff0000; color: white; padding: 5px; font-size: 12px; z-index: 99999;" }
     Панель скрыта: #{cart_has_items? ? 'условие path' : 'корзина пуста'}
