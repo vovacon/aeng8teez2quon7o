@@ -124,5 +124,10 @@ Rozario::App.helpers do
     
     true
   end
+  
+  # Упрощенная версия для отладки - показываем всегда когда есть товары
+  def should_show_cart_panel_debug?
+    cart_has_items?
+  end
 
 end
