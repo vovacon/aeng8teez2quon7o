@@ -1,0 +1,82 @@
+-# JavaScript для обновления панели корзины
+:javascript
+  // Функция для обновления панели корзины
+  function updateMobileCartPanel() {
+    const cartPanel = document.getElementById('mobile-cart-panel');
+    const cartCountBadge = document.getElementById('cart-count-badge');
+    const cartTotalPrice = document.getElementById('cart-total-price');
+    
+    if (!cartPanel) return;
+    
+    fetch('/cart/stat', {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      const totalQuantity = data.total_q || 0;
+      const totalSum = Math.round(data.total_s || 0);
+      
+      if (cartCountBadge) {
+        cartCountBadge.textContent = totalQuantity;
+      }
+      if (cartTotalPrice) {
+        cartTotalPrice.textContent = totalSum + ' ₽';
+      }
+      
+      // Показываем/скрываем панель в зависимости от количества товаров
+      const hasItems = totalQuantity > 0;
+      const isMobile = window.innerWidth <= 768;
+      const isCartPage = window.location.pathname.indexOf('/cart') === 0;
+      
+      if (hasItems && isMobile && !isCartPage) {
+        cartPanel.style.display = 'flex';
+        document.body.classList.add('has-mobile-cart-panel');
+      } else {
+        cartPanel.style.display = 'none';
+        document.body.classList.remove('has-mobile-cart-panel');
+      }
+    })
+    .catch(error => {
+      console.error('Ошибка при обновлении корзины:', error);
+    });
+  }
+  
+  // Инициализация при загрузке страницы
+  document.addEventListener('DOMContentLoaded', function() {
+    updateMobileCartPanel();
+    
+    // Обновляем панель при изменении размера окна
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateMobileCartPanel, 250);
+    });
+    
+    // Слушаем кастомные события обновления корзины
+    document.addEventListener('cart:updated', updateMobileCartPanel);
+    
+    // Перехватываем клики по ссылкам добавления в корзину
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest('a[href*="/cart/add/"], a[href*="/add-to-cart/"]');
+      if (target) {
+        // Ждем немного и обновляем панель после добавления в корзину
+        setTimeout(updateMobileCartPanel, 500);
+      }
+    });
+    
+    // Перехватываем отправку форм добавления в корзину  
+    document.addEventListener('submit', function(e) {
+      const form = e.target;
+      if (form.action && (form.action.includes('/cart/add/') || form.action.includes('/add-to-cart/'))) {
+        // Ждем немного и обновляем панель после добавления в корзину
+        setTimeout(updateMobileCartPanel, 500);
+      }
+    });
+  });
+  
+  // Периодическое обновление (каждые 60 секунд, чтобы не нагружать сервер)
+  setInterval(updateMobileCartPanel, 60000);

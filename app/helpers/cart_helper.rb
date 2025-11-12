@@ -91,4 +91,38 @@ Rozario::App.helpers do
     tn_f_path = File.join(d_path, f_name)
   end
 
+  # Метод для подсчета общего количества товаров в корзине
+  def cart_items_count
+    return 0 if session[:cart].nil? || session[:cart].empty?
+    session[:cart].sum { |item| item["quantity"].to_i }
+  end
+
+  # Метод для проверки, есть ли товары в корзине
+  def cart_has_items?
+    !session[:cart].nil? && !session[:cart].empty?
+  end
+
+  # Метод для проверки, нужно ли показывать панель корзины
+  def should_show_cart_panel?
+    return false unless cart_has_items?
+    
+    # Не показываем на страницах корзины и оформления заказа
+    current_path = request.path_info
+    excluded_paths = [
+      '/cart',
+      '/cart/',
+      '/cart/show',
+      '/cart/index',
+      '/cart/checkout',
+      '/cart/precheckout',
+      '/cart/payment',
+      '/cart/payments',
+      '/cart/thanks'
+    ]
+    
+    return false if excluded_paths.any? { |path| current_path.start_with?(path) }
+    
+    true
+  end
+
 end

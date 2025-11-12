@@ -1,0 +1,112 @@
+-# encoding: utf-8
+-# Mobile cart panel
+- if should_show_cart_panel?
+  .mobile-cart-panel#mobile-cart-panel{ style: "display: none;" }
+    .mobile-cart-panel__content
+      .mobile-cart-panel__items-count
+        %span.mobile-cart-panel__count-badge{ id: "cart-count-badge" }= cart_items_count
+      
+      %a.mobile-cart-panel__cart-button{ href: "/cart" }
+        В корзину
+      
+      .mobile-cart-panel__total-price
+        %span.mobile-cart-panel__price{ id: "cart-total-price" }= "#{total.to_i} ₽"
+
+:css
+  .mobile-cart-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .mobile-cart-panel__content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-cart-panel__items-count {
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
+  }
+
+  .mobile-cart-panel__count-badge {
+    background-color: #ff4757;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 24px;
+  }
+
+  .mobile-cart-panel__cart-button {
+    flex: 1;
+    text-align: center;
+    background-color: #2ecc71;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 12px;
+    transition: background-color 0.2s;
+  }
+
+  .mobile-cart-panel__cart-button:hover {
+    background-color: #27ae60;
+    color: white;
+    text-decoration: none;
+  }
+
+  .mobile-cart-panel__total-price {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+  }
+
+  .mobile-cart-panel__price {
+    color: #e74c3c;
+    font-size: 16px;
+  }
+
+  /* Показываем только на мобильных устройствах */
+  @media (max-width: 768px) {
+    .mobile-cart-panel {
+      display: flex !important;
+    }
+  }
+
+  @media (min-width: 769px) {
+    .mobile-cart-panel {
+      display: none !important;
+    }
+  }
+
+  /* Отступ снизу для body, чтобы контент не перекрывался панелью */
+  @media (max-width: 768px) {
+    body.has-mobile-cart-panel {
+      padding-bottom: 48px;
+    }
+  }
+
+-# JavaScript вынесен в отдельный partial
+= partial 'layouts/parts/mobile_cart_panel_js'
