@@ -18,7 +18,7 @@
         %span.mobile-cart-panel__count-badge= total_items
       
       %a.mobile-cart-panel__cart-button{ href: "/cart" }
-        В корзину
+        Перейти в корзину
       
       .mobile-cart-panel__total-price
         %span.mobile-cart-panel__price= "#{total_sum.round} ₽"
@@ -29,7 +29,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 48px;
+    height: 76px;
     background-color: #fff;
     border-top: 1px solid #ddd;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
@@ -72,13 +72,17 @@
     text-align: center;
     background-color: #ef845b;
     color: white;
-    padding: 8px 16px;
+    height: 40px;
+    line-height: 40px;
     border-radius: 4px;
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
     margin: 0 12px;
     transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .mobile-cart-panel__cart-button:hover {
@@ -112,7 +116,7 @@
     
     /* Добавляем отступ снизу для body */
     body:not([data-page-cart]) {
-      padding-bottom: 48px;
+      padding-bottom: 76px;
     }
   }
 
