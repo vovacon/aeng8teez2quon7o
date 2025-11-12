@@ -6,8 +6,9 @@
   - session[:cart].each do |item|
     - product = Product.find_by_id(item["id"])
     - if product
-      - complect_id = Complect.find_by_title(item["type"] || "standard")&.id || 1
-      - product_complect = ProductComplect.find_by(product_id: product.id, complect_id: complect_id)
+      - complect = Complect.find_by_title(item["type"]) || Complect.find_by_title("standard")
+      - complect_id = complect ? complect.id : 1
+      - product_complect = ProductComplect.where(product_id: product.id, complect_id: complect_id).first
       - if product_complect
         - total_sum += product_complect.price * item["quantity"].to_i
   
@@ -20,7 +21,7 @@
         В корзину
       
       .mobile-cart-panel__total-price
-        %span.mobile-cart-panel__price= "#{total_sum.round} ₽"
+        %span.mobile-cart-panel__price= "#{total_sum.round} руб"
 
 :css
   .mobile-cart-panel {
