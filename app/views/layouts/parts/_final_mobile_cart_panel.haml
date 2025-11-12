@@ -99,8 +99,8 @@
     font-size: 16px;
   }
 
-  /* Показываем только на мобильных устройствах и только НЕ на страницах корзины */
-  @media (max-width: 768px) {
+  /* Показываем на экранах меньше 1024px и только НЕ на страницах корзины */
+  @media (max-width: 1023px) {
     .mobile-cart-panel {
       display: flex !important;
     }
@@ -116,7 +116,7 @@
     }
   }
 
-  @media (min-width: 769px) {
+  @media (min-width: 1024px) {
     .mobile-cart-panel {
       display: none !important;
     }
@@ -136,17 +136,17 @@
         document.body.removeAttribute('data-page-cart');
         document.body.setAttribute('data-page-cart', 'true');
       } else {
-        // Показываем панель на мобильных устройствах
-        if (window.innerWidth <= 768) {
+        // Показываем панель на экранах меньше 1024px
+        if (window.innerWidth < 1024) {
           cartPanel.style.display = 'flex';
         }
       }
       
       // Обновляем при изменении размера окна
       window.addEventListener('resize', function() {
-        if (!isCartPage && window.innerWidth <= 768) {
+        if (!isCartPage && window.innerWidth < 1024) {
           cartPanel.style.display = 'flex';
-        } else if (window.innerWidth > 768) {
+        } else if (window.innerWidth >= 1024) {
           cartPanel.style.display = 'none';
         }
       });
