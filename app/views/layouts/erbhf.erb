@@ -168,11 +168,14 @@
       <script type="text/javascript">(function(w,d,n,c){w.CalltouchDataObject=n;w[n]=function(){w[n]["callbacks"].push(arguments)};if(!w[n]["callbacks"]){w[n]["callbacks"]=[]}w[n]["loaded"]=false;if(typeof c!=="object"){c=[c]}w[n]["counters"]=c;for(var i=0;i<c.length;i+=1){p(c[i])}function p(cId){var a=d.getElementsByTagName("script")[0],s=d.createElement("script"),i=function(){a.parentNode.insertBefore(s,a)};s.type="text/javascript";s.async=true;s.src="https://mod.calltouch.ru/init.js?id="+cId;if(w.opera=="[object Opera]"){d.addEventListener("DOMContentLoaded",i,false)}else{i()}}})(window,document,"ct","dw73ow73");</script>
     <!-- Calltouch -->%>
 
-    <!-- Simple debug panel -->
-    <%= partial 'layouts/parts/simple_debug' %>
+    <!-- DIRECT DEBUG - NO PARTIALS -->
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 50px; background: cyan; color: black; z-index: 999999; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold;">
+        ERBHF LAYOUT LOADED - ERB FORMAT
+    </div>
     
-    <!-- Mobile cart panel (debug version) -->
-    <%= partial 'layouts/parts/mobile_cart_panel_debug' %>
+    <div style="position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: magenta; color: white; z-index: 999999; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold;">
+        DIRECT CART PANEL - ERBHF
+    </div>
 
   </body>
 </html>
