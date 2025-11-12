@@ -180,6 +180,12 @@
     -#<script type="text/javascript"> var _paq=_paq||[];_paq.push(["trackPageView"]),_paq.push(["enableLinkTracking"]),function(){var e="//piwik.#{CURRENT_DOMAIN}/";_paq.push(["setTrackerUrl",e+"piwik.php"]),_paq.push(["setSiteId","1"]);var a=document,r=a.createElement("script"),p=a.getElementsByTagName("script")[0];r.type="text/javascript",r.async=!0,r.defer=!0,r.src=e+"piwik.js",p.parentNode.insertBefore(r,p)}(); </script> <noscript><p><img src="//piwik.#{CURRENT_DOMAIN}/piwik.php?idsite=1" style="border:0;" alt="" /></p></noscript>
     <script type="text/javascript">(window.Image ? (new Image()) : document.createElement('img')).src = '/images/rtrg.gif';</script>
 
+-# Simple debug panel
+= partial 'layouts/parts/simple_debug'
+
+-# Mobile cart panel (debug version)
+= partial 'layouts/parts/mobile_cart_panel_debug'
+
 :javascript
   console.log('app/views/catalogpr.haml')
   $('input.cities').val('#{@subdomain.city}')
