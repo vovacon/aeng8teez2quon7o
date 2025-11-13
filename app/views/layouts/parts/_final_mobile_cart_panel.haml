@@ -158,12 +158,14 @@
         const currentPath = window.location.pathname;
         const isCartPage = currentPath.startsWith('/cart');
         
-        if (cartPanel && hasItems && !isCartPage && window.innerWidth < 1024) {
-          cartPanel.style.display = 'flex';
-          document.body.style.paddingBottom = '76px';
-        } else if (cartPanel) {
-          cartPanel.style.display = 'none';
-          document.body.style.paddingBottom = '0';
+        if (cartPanel) {
+          if (hasItems && !isCartPage && window.innerWidth < 1024) {
+            cartPanel.style.display = 'flex';
+            document.body.style.paddingBottom = '76px';
+          } else {
+            cartPanel.style.display = 'none';
+            document.body.style.paddingBottom = '0';
+          }
         }
       })
       .catch(error => {
