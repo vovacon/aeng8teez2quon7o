@@ -114,6 +114,11 @@
       display: none !important;
     }
     
+    /* Дополнительное правило для страниц корзины */
+    .mobile-cart-panel[data-cart-page="true"] {
+      display: none !important;
+    }
+    
     /* Добавляем отступ снизу для body */
     body:not([data-page-cart]) {
       padding-bottom: 76px;
@@ -173,10 +178,12 @@
           if (hasItems && !isCartPage && window.innerWidth < 1024) {
             console.log('Showing cart panel');
             cartPanel.style.display = 'flex';
+            cartPanel.removeAttribute('data-cart-page');
             document.body.style.paddingBottom = '76px';
           } else {
             console.log('Hiding cart panel - Reason:', !hasItems ? 'no items' : isCartPage ? 'cart page' : 'desktop');
             cartPanel.style.display = 'none';
+            if (isCartPage) cartPanel.setAttribute('data-cart-page', 'true');
             document.body.style.paddingBottom = '0';
           }
         }
