@@ -15,13 +15,13 @@
   .mobile-cart-panel#mobile-cart-panel
     .mobile-cart-panel__content
       .mobile-cart-panel__items-count
-        %span.mobile-cart-panel__count-badge= total_items
+        %span.mobile-cart-panel__count-badge#cart-count-badge= total_items
       
       %a.mobile-cart-panel__cart-button{ href: "/cart" }
         Перейти в корзину
       
       .mobile-cart-panel__total-price
-        %span.mobile-cart-panel__price= "#{total_sum.round} ₽"
+        %span.mobile-cart-panel__price#cart-total-price= "#{total_sum.round} ₽"
 
 :css
   .mobile-cart-panel {
@@ -130,31 +130,75 @@
   document.addEventListener('DOMContentLoaded', function() {
     const cartPanel = document.getElementById('mobile-cart-panel');
     
-    if (cartPanel) {
-      // Скрываем панель на страницах корзины
-      const currentPath = window.location.pathname;
-      const isCartPage = currentPath.startsWith('/cart');
-      
-      if (isCartPage) {
-        cartPanel.style.display = 'none';
-        document.body.removeAttribute('data-page-cart');
-        document.body.setAttribute('data-page-cart', 'true');
-      } else {
-        // Показываем панель на экранах меньше 1024px
-        if (window.innerWidth < 1024) {
-          cartPanel.style.display = 'flex';
+    // Функция обновления панели через AJAX
+    function updateCartPanel() {
+      fetch('/cart/stat?_=' + Date.now(), {
+        method: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
-      }
-      
-      // Обновляем при изменении размера окна
-      window.addEventListener('resize', function() {
-        if (!isCartPage && window.innerWidth < 1024) {
+      })
+      .then(response => response.json())
+      .then(data => {
+        const countBadge = document.getElementById('cart-count-badge');
+        const totalPrice = document.getElementById('cart-total-price');
+        
+        if (countBadge && data.total_q !== undefined) {
+          countBadge.textContent = data.total_q;
+        }
+        if (totalPrice && data.total_s !== undefined) {
+          totalPrice.textContent = Math.round(data.total_s) + ' ₽';
+        }
+        
+        // Показываем/скрываем панель в зависимости от наличия товаров
+        const hasItems = (data.total_q || 0) > 0;
+        const currentPath = window.location.pathname;
+        const isCartPage = currentPath.startsWith('/cart');
+        
+        if (cartPanel && hasItems && !isCartPage && window.innerWidth < 1024) {
           cartPanel.style.display = 'flex';
-        } else if (window.innerWidth >= 1024) {
+          document.body.style.paddingBottom = '76px';
+        } else if (cartPanel) {
           cartPanel.style.display = 'none';
+          document.body.style.paddingBottom = '0';
         }
+      })
+      .catch(error => {
+        console.warn('Cart panel update failed:', error);
       });
     }
     
-    console.log('Mobile cart panel loaded');
+    if (cartPanel) {
+      // Начальное обновление
+      updateCartPanel();
+      
+      // Обновляем при изменении размера окна
+      window.addEventListener('resize', function() {
+        setTimeout(updateCartPanel, 100);
+      });
+      
+      // Обновляем при кликах по ссылкам добавления в корзину
+      document.addEventListener('click', function(e) {
+        const target = e.target.closest('a[href*="/cart/add/"], a[href*="/add-to-cart/"]');
+        if (target) {
+          setTimeout(updateCartPanel, 1000);
+        }
+      });
+      
+      // Обновляем при отправке форм добавления в корзину
+      document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (form.action && (form.action.includes('/cart/add/') || form.action.includes('/add-to-cart/'))) {
+          setTimeout(updateCartPanel, 1000);
+        }
+      });
+      
+      // Периодическое обновление (каждые 30 секунд)
+      setInterval(updateCartPanel, 30000);
+    }
+    
+    console.log('Mobile cart panel with AJAX updates loaded');
   });

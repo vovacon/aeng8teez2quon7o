@@ -73,6 +73,11 @@ Rozario::App.controllers :cart do
 
   get :stat do
     puts "get :stat cart.rb"
+    # Предотвращаем кэширование данных корзины
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    
     total_q = 0
     unless session[:cart].nil?
       session[:cart].each do |item|
