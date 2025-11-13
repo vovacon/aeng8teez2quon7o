@@ -26,11 +26,20 @@ CarrierWave.root = File.join(Padrino.root, "public")
 #   redis: Redis.new(url: ENV['REDIS_URL'].to_s || "redis://:#{ENV['REDIS_PASSWORD'].to_s}@localhost:6379/0")
 # )
 
-require 'rack/cache'
-Padrino.use Rack::Cache,
-  verbose: true,
-  metastore:   "redis://:#{ENV['REDIS_PASSWORD'].to_s}@localhost:6379/0/metastore",
-  entitystore: "redis://:#{ENV['REDIS_PASSWORD'].to_s}@localhost:6379/0/entitystore"
+# Подключаем Rack::Cache только если кэш включён
+def cache_enabled?
+  cache_env = ENV['CACHE']
+  return true if cache_env.nil? || cache_env.empty? || cache_env == 'enabled'
+  false
+end
+
+if cache_enabled?
+  require 'rack/cache'
+  Padrino.use Rack::Cache,
+    verbose: true,
+    metastore:   "redis://:#{ENV['REDIS_PASSWORD'].to_s}@localhost:6379/0/metastore",
+    entitystore: "redis://:#{ENV['REDIS_PASSWORD'].to_s}@localhost:6379/0/entitystore"
+end
 
 # ## Configure your I18n
 #

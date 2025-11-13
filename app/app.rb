@@ -87,14 +87,30 @@ module Rozario
     # use MultiCaptcha::SansScriptBlocker
 
 
+    # Проверяем переменную окружения CACHE
+    def cache_enabled?
+      cache_env = ENV['CACHE']
+      return true if cache_env.nil? || cache_env.empty? || cache_env == 'enabled'
+      false
+    end
+
     if PADRINO_ENV == 'production'
       set :host, "https://#{CURRENT_DOMAIN}"
-      register Padrino::Cache # Includes helpers
-      enable :caching         # Turn cache up!
-      Padrino.cache.flush     # In for a penny, in for a pound...
+      if cache_enabled?
+        register Padrino::Cache # Includes helpers
+        enable :caching         # Turn cache up!
+        Padrino.cache.flush     # In for a penny, in for a pound...
+      else
+        disable :caching
+      end
     elsif PADRINO_ENV == 'development'
       set :host, "https://#{CURRENT_DOMAIN_DEVELOPMENT}"
-      disable :caching
+      if cache_enabled?
+        register Padrino::Cache # Includes helpers
+        enable :caching
+      else
+        disable :caching
+      end
       enable :reload
       # helpers MultiCaptcha::Helpers
       # use MultiCaptcha::Middleware # Должен быть перед любым middleware, который обрабатывает параметры формы

@@ -873,9 +873,19 @@ Rozario::App.controllers :api do
             
             log.puts "[ITEM #{index + 1}/#{data.length}] 1С ID: #{product_1c_id}, Title: '#{str}'"
             
-            # Получить все названия комплектов с кешированием
-            @complects_cache ||= Complect.all.map(&:header)
-            substrings = @complects_cache
+            # Получить все названия комплектов с кешированием (если включён)
+            def cache_enabled?
+              cache_env = ENV['CACHE']
+              return true if cache_env.nil? || cache_env.empty? || cache_env == 'enabled'
+              false
+            end
+            
+            if cache_enabled?
+              @complects_cache ||= Complect.all.map(&:header)
+              substrings = @complects_cache
+            else
+              substrings = Complect.all.map(&:header)
+            end
             
             if substrings.any? { |substring| str.include?(substring) } # Если указанный в заголовке тип комплекта зарегистирован...
               log.puts "[ITEM #{index + 1}] ✓ Найден соответствующий тип комплекта в заголовке"
