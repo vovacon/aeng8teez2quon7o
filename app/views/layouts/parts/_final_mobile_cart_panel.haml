@@ -159,11 +159,23 @@
         const currentUrl = window.location.href;
         const isCartPage = currentPath.startsWith('/cart') || currentUrl.includes('/cart');
         
+        // Отладочная информация
+        console.log('Cart Panel Debug:', {
+          hasItems: hasItems,
+          currentPath: currentPath,
+          currentUrl: currentUrl,
+          isCartPage: isCartPage,
+          screenWidth: window.innerWidth,
+          shouldShow: hasItems && !isCartPage && window.innerWidth < 1024
+        });
+        
         if (cartPanel) {
           if (hasItems && !isCartPage && window.innerWidth < 1024) {
+            console.log('Showing cart panel');
             cartPanel.style.display = 'flex';
             document.body.style.paddingBottom = '76px';
           } else {
+            console.log('Hiding cart panel - Reason:', !hasItems ? 'no items' : isCartPage ? 'cart page' : 'desktop');
             cartPanel.style.display = 'none';
             document.body.style.paddingBottom = '0';
           }
