@@ -7,6 +7,15 @@
     %meta{:name => :viewport, :content => 'width=device-width,initial-scale=1'}
     %title= @seo[:title]
     %meta{:name => "description", :content => @seo[:description]}/
+    
+    -# Стили для стабильного отображения символа рубля
+    :css
+      .ruble-symbol {
+        font-weight: normal;
+        font-family: Arial, sans-serif;
+        display: inline;
+        font-style: normal;
+      }
     -# %meta{:name => "keywords", :content => @seo[:keywords]}/
     %meta{:property => "og:type", :content => @seo[:og_type]}/
     %meta{:property => "og:title", :content => @seo[:og_title]}/

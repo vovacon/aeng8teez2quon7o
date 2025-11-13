@@ -249,12 +249,12 @@
                           .price
                             %span.price-prefix от 
                             #{price}
-                            %i.fa.fa-rub{"aria-hidden" => ""}
+                            %span.ruble-symbol ₽
                             -# Старая цена временно скрыта
                             -# - if old_spice > price
                             -#   %p.old-spice
                             -#     #{old_spice}
-                            -#     %i.fa.fa-rub{"aria-hidden" => ""}
+                            -#     %span.ruble-symbol ₽
                 .carousel-cell.last
                   .wrapper
                     - # sample = x.sample(4)
@@ -427,8 +427,8 @@
     background: rgb(213, 244, 218);
   }
   /* #MATRIX .price.discounted { color: red; } */
-  #wr .price .fa-rub { font-size: 18px; }
-  #wr .old-spice .fa-rub { font-size: 13px; }
+  #wr .price .ruble-symbol { font-size: 18px; }
+  #wr .old-spice .ruble-symbol { font-size: 13px; }
   #wr a.header { padding: 0 12px; }
   #wr a.header::after {
     content: '';

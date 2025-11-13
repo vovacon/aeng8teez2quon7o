@@ -51,7 +51,7 @@
           Количество: <%=item["quantity"] %><br />
           <strong>Стоимость: <%=(price+discount).round()*item["quantity"].to_i %> руб.
 
-          &nbsp;<i class="fa fa-rub" aria-hidden="true"></i><br /></strong>
+          &nbsp;<span class="ruble-symbol">₽</span><br /></strong>
         </td>
       </tr>
 
@@ -65,9 +65,9 @@
 
   <h3 style="font-size:20px;">Сумма товаров:
     <% if !@delivery_price.blank? %>
-      <%=@total_summ.to_i - @delivery_price.to_i %>&nbsp;руб.<!-- <i class="fa fa-rub" aria-hidden="true"></i> --><br />
+      <%=@total_summ.to_i - @delivery_price.to_i %>&nbsp;руб.<!-- <span class="ruble-symbol">₽</span> --><br />
     <% else %>
-      <%=@total_summ %>&nbsp;руб.<!-- <i class="fa fa-rub" aria-hidden="true"></i> --><br />
+      <%=@total_summ %>&nbsp;руб.<!-- <span class="ruble-symbol">₽</span> --><br />
     <% end %>
   </h3>
 
@@ -174,9 +174,9 @@
 
   <h3 style="font-size:20px;">
     <% if !@delivery_price.blank?&&@dt_txt!='Забрать в магазине (самовывоз)' %>
-      Сумма доставки: <%= @delivery_price %>&nbsp;руб.<!-- <i class="fa fa-rub" aria-hidden="true"></i> --><br />
+      Сумма доставки: <%= @delivery_price %>&nbsp;руб.<!-- <span class="ruble-symbol">₽</span> --><br />
     <% end %>
-    Сумма заказа: <%= @total_summ.to_i.round() %>&nbsp;руб.<!-- <i class="fa fa-rub" aria-hidden="true"></i> --><br /></h3>
+    Сумма заказа: <%= @total_summ.to_i.round() %>&nbsp;руб.<!-- <span class="ruble-symbol">₽</span> --><br /></h3>
 
   <p>&nbsp;</p>
 

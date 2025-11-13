@@ -6,6 +6,16 @@
     <% get_seo_data('default', nil, true) if @seo.nil? %>
     <title><%= @seo[:title] %></title>
     <meta content="<%= @seo[:description] %>" name="description"/>
+    
+    <!-- Стили для стабильного отображения символа рубля -->
+    <style>
+      .ruble-symbol {
+        font-weight: normal;
+        font-family: Arial, sans-serif;
+        display: inline;
+        font-style: normal;
+      }
+    </style>
     <%# <meta content="<%= @seo[:keywords] >" name="keywords"/> %>
     <meta content="<%= @seo[:og_type] %>" property="og:type"/>
     <meta content="<%= @seo[:og_title] %>" property="og:title"/>

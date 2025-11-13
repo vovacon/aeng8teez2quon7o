@@ -54,7 +54,7 @@
               от
             %span.currprice{style: 'font-weight: bold; font-size: 24px;', :itemprop => 'price'}
               = price
-            %i.fa.fa-rub{'aria-hidden'=>true}
+            %span.ruble-symbol ₽
       .row.visible-sm.visible-xs
         .col-xs-6.text-left{ style: "margin-top:10px" }
           - if brdcrmbs_params_in_link
@@ -69,7 +69,7 @@
             от
             %span.currprice{:itemprop => 'price'}
               = price
-            %i.fa.fa-rub{'aria-hidden'=>true}
+            %span.ruble-symbol ₽
         .col-xs-6{ style: "z-index: 11" }
           .tocart{ style: "margin-left:-20px; z-index: 11" }
             - if @category.parent_id && @category.id && ![745, 118].include?(@category.id)
