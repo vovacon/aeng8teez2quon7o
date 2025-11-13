@@ -198,6 +198,22 @@
           shouldShow: hasItems && !isCartPage && window.innerWidth < 1024
         });
         
+        // Управление позицией чата TalkMe
+        function updateChatPosition(showPanel) {
+          // Найдём стиль TalkMe или создадим новый
+          let chatStyle = document.getElementById('TalkMe_online-chat-trigger');
+          if (!chatStyle) {
+            chatStyle = document.createElement('style');
+            chatStyle.id = 'TalkMe_online-chat-trigger';
+            document.head.appendChild(chatStyle);
+          }
+          
+          const bottomValue = showPanel ? '116px' : '40px'; // 76px панель + 40px отступ = 116px
+          chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {bottom: ${bottomValue} !important; right: 150px !important;}`;
+          
+          console.log('Chat position updated:', bottomValue);
+        }
+
         if (cartPanel) {
           if (hasItems && !isCartPage && window.innerWidth < 1024) {
             console.log('Showing cart panel');
@@ -208,6 +224,8 @@
             if (cartFiller && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
               cartFiller.style.display = 'block';
             }
+            // Поднимаем чат над панелью
+            updateChatPosition(true);
           } else {
             console.log('Hiding cart panel - Reason:', !hasItems ? 'no items' : isCartPage ? 'cart page' : 'desktop');
             cartPanel.style.display = 'none';
@@ -217,6 +235,8 @@
             if (cartFiller) {
               cartFiller.style.display = 'none';
             }
+            // Возвращаем чат в обычное положение
+            updateChatPosition(false);
           }
         }
       })
@@ -228,6 +248,14 @@
     if (cartPanel) {
       // Начальное обновление
       updateCartPanel();
+      
+      // Устанавливаем позицию чата после загрузки TalkMe (с задержкой)
+      setTimeout(function() {
+        const panelVisible = cartPanel.style.display === 'flex';
+        if (typeof updateChatPosition === 'function') {
+          updateChatPosition(panelVisible);
+        }
+      }, 2000); // Ждём 2 секунды для загрузки TalkMe
       
       // Обновляем при изменении размера окна
       window.addEventListener('resize', function() {
@@ -254,5 +282,25 @@
       setInterval(updateCartPanel, 30000);
     }
     
-    console.log('Mobile cart panel with AJAX updates loaded');
+    // Наблюдатель за появлением чата TalkMe
+    const chatObserver = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'childList') {
+          const supportTrigger = document.getElementById('supportTrigger');
+          if (supportTrigger && !supportTrigger.hasAttribute('data-cart-positioned')) {
+            supportTrigger.setAttribute('data-cart-positioned', 'true');
+            const panelVisible = cartPanel && cartPanel.style.display === 'flex';
+            if (typeof updateChatPosition === 'function') {
+              updateChatPosition(panelVisible);
+              console.log('TalkMe chat detected and positioned');
+            }
+          }
+        }
+      });
+    });
+    
+    // Начинаем наблюдение за изменениями в DOM
+    chatObserver.observe(document.body, { childList: true, subtree: true });
+    
+    console.log('Mobile cart panel with AJAX updates and chat positioning loaded');
   });

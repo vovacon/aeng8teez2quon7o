@@ -168,3 +168,49 @@ if (cartFiller && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
    - Better error handling
 
 The mobile cart panel is now fully functional with enhanced iPhone compatibility to prevent empty area visibility issues.
+
+
+## TalkMe Чат Интеграция
+
+### Проблема
+Кнопка чата TalkMe (#supportTrigger) перекрывалась мобильной панелью корзины.
+
+### Решение
+- **Позиция без панели**: `bottom: 40px !important`
+- **Позиция с панелью**: `bottom: 116px !important` (76px панель + 40px отступ)
+
+### Технические детали
+```javascript
+// Автоматическое создание/обновление CSS стиля
+function updateChatPosition(showPanel) {
+  let chatStyle = document.getElementById('TalkMe_online-chat-trigger');
+  if (!chatStyle) {
+    chatStyle = document.createElement('style');
+    chatStyle.id = 'TalkMe_online-chat-trigger';
+    document.head.appendChild(chatStyle);
+  }
+  
+  const bottomValue = showPanel ? '116px' : '40px';
+  chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {bottom: ${bottomValue} !important; right: 150px !important;}`;
+}
+```
+
+### Отлаживание положения чата
+- **MutationObserver**: Отслеживает появление #supportTrigger
+- **Атрибут data-cart-positioned**: Предотвращает повторное позиционирование
+- **Отложенная инициализация**: 2 секунды для полной загрузки TalkMe
+
+### Логи отладки
+В консоли браузера появляются сообщения:
+- "Chat position updated: 40px" - чат в обычной позиции
+- "Chat position updated: 116px" - чат поднят над панелью
+- "TalkMe chat detected and positioned" - чат найден и позиционирован
+
+### Тестирование интеграции чата
+1. Открыть сайт на мобильном устройстве (<1024px)
+2. Добавить товар в корзину - появится панель
+3. Проверить, что кнопка чата поднялась над панелью
+4. Удалить все товары из корзины - панель скрывается, чат опускается
+5. Проверить в DevTools, что CSS стили изменяются динамически
+
+**Окончательный результат**: Мобильная панель корзины теперь полностью функциональна с интеллектуальной интеграцией TalkMe чата, стабильными символами рубля и улучшенной iPhone совместимостью.
