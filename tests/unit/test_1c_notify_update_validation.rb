@@ -1,3 +1,4 @@
+# encoding: utf-8
 #!/usr/bin/env ruby
 # encoding: utf-8
 # Unit tests for 1C Notify Update API validation logic
