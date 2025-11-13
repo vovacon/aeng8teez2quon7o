@@ -37,6 +37,21 @@
     display: none; /* Скрыта по умолчанию */
     align-items: center;
     padding: 0 16px;
+    /* Для iPhone - заполняем пустое пространство снизу */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    min-height: 76px;
+  }
+  
+  /* Дополнительная подложка для iPhone */
+  .mobile-cart-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -50px;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background-color: #fff;
+    z-index: -1;
   }
 
   .mobile-cart-panel__content {
@@ -119,9 +134,9 @@
       display: none !important;
     }
     
-    /* Добавляем отступ снизу для body */
+    /* Добавляем отступ снизу для body с учетом safe area */
     body:not([data-page-cart]) {
-      padding-bottom: 76px;
+      padding-bottom: calc(76px + env(safe-area-inset-bottom, 0));
     }
   }
 
