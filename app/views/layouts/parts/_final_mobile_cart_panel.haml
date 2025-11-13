@@ -156,7 +156,8 @@
         // Показываем/скрываем панель в зависимости от наличия товаров
         const hasItems = (data.total_q || 0) > 0;
         const currentPath = window.location.pathname;
-        const isCartPage = currentPath.startsWith('/cart');
+        const currentUrl = window.location.href;
+        const isCartPage = currentPath.startsWith('/cart') || currentUrl.includes('/cart');
         
         if (cartPanel) {
           if (hasItems && !isCartPage && window.innerWidth < 1024) {
