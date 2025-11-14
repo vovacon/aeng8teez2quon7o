@@ -155,6 +155,53 @@
   }
 
 :javascript
+  // Глобальная функция для управления позицией чата TalkMe
+  window.updateChatPosition = function(showPanel) {
+    // Найдём стиль TalkMe или создадим новый
+    let chatStyle = document.getElementById('TalkMe_online-chat-trigger');
+    if (!chatStyle) {
+      chatStyle = document.createElement('style');
+      chatStyle.id = 'TalkMe_online-chat-trigger';
+      document.head.appendChild(chatStyle);
+    }
+    
+    const bottomValue = showPanel ? '116px' : '40px'; // 76px панель + 40px отступ = 116px
+    chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {bottom: ${bottomValue} !important; right: 150px !important;}`;
+    
+    console.log('Chat position updated:', bottomValue);
+    
+    // Дополнительно проверяем сам элемент
+    const supportTrigger = document.getElementById('supportTrigger');
+    if (supportTrigger) {
+      supportTrigger.style.bottom = bottomValue + ' !important';
+      console.log('Chat trigger element directly updated:', bottomValue);
+    }
+  };
+  
+  // Функция поиска и позиционирования чата
+  window.findAndPositionChat = function() {
+    const cartPanel = document.getElementById('mobile-cart-panel');
+    const supportTrigger = document.getElementById('supportTrigger');
+    
+    if (supportTrigger && cartPanel) {
+      const panelVisible = window.getComputedStyle(cartPanel).display === 'flex';
+      const isMobile = window.innerWidth < 1024;
+      const shouldPositionChat = panelVisible && isMobile;
+      
+      window.updateChatPosition(shouldPositionChat);
+      
+      // Отмечаем, что чат уже позиционирован
+      if (!supportTrigger.hasAttribute('data-cart-positioned')) {
+        supportTrigger.setAttribute('data-cart-positioned', 'true');
+      }
+      
+      console.log('Chat found and positioned:', shouldPositionChat ? '116px' : '40px', 'Mobile:', isMobile, 'Panel visible:', panelVisible);
+      return true;
+    }
+    
+    return false;
+  };
+
   document.addEventListener('DOMContentLoaded', function() {
     const cartPanel = document.getElementById('mobile-cart-panel');
     const cartFiller = document.getElementById('cart-panel-filler');
@@ -198,21 +245,7 @@
           shouldShow: hasItems && !isCartPage && window.innerWidth < 1024
         });
         
-        // Управление позицией чата TalkMe
-        function updateChatPosition(showPanel) {
-          // Найдём стиль TalkMe или создадим новый
-          let chatStyle = document.getElementById('TalkMe_online-chat-trigger');
-          if (!chatStyle) {
-            chatStyle = document.createElement('style');
-            chatStyle.id = 'TalkMe_online-chat-trigger';
-            document.head.appendChild(chatStyle);
-          }
-          
-          const bottomValue = showPanel ? '116px' : '40px'; // 76px панель + 40px отступ = 116px
-          chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {bottom: ${bottomValue} !important; right: 150px !important;}`;
-          
-          console.log('Chat position updated:', bottomValue);
-        }
+
 
         if (cartPanel) {
           if (hasItems && !isCartPage && window.innerWidth < 1024) {
@@ -225,7 +258,7 @@
               cartFiller.style.display = 'block';
             }
             // Поднимаем чат над панелью
-            updateChatPosition(true);
+            window.updateChatPosition(true);
           } else {
             console.log('Hiding cart panel - Reason:', !hasItems ? 'no items' : isCartPage ? 'cart page' : 'desktop');
             cartPanel.style.display = 'none';
@@ -236,7 +269,7 @@
               cartFiller.style.display = 'none';
             }
             // Возвращаем чат в обычное положение
-            updateChatPosition(false);
+            window.updateChatPosition(false);
           }
         }
       })
@@ -249,46 +282,32 @@
       // Начальное обновление
       updateCartPanel();
       
-      // Улучшенная инициализация позиции чата
-      let chatInitAttempts = 0;
-      const maxChatInitAttempts = 20; // Максимум 10 секунд (20 раз по 500мс)
+      // Простая и надёжная инициализация позиции чата
+      // Пробуем найти чат немедленно
+      setTimeout(() => window.findAndPositionChat(), 100);
       
-      function initializeChatPosition() {
-        chatInitAttempts++;
-        const supportTrigger = document.getElementById('supportTrigger');
-        
-        if (supportTrigger) {
-          console.log('TalkMe chat found on attempt', chatInitAttempts);
-          const panelVisible = cartPanel.style.display === 'flex';
-          if (typeof updateChatPosition === 'function') {
-            updateChatPosition(panelVisible);
-            console.log('Initial chat position set:', panelVisible ? '116px' : '40px');
-          }
-          return true; // Успешно инициализирован
-        }
-        
-        if (chatInitAttempts < maxChatInitAttempts) {
-          setTimeout(initializeChatPosition, 500); // Повторяем каждые 500мс
-        } else {
-          console.log('TalkMe chat not found after', maxChatInitAttempts, 'attempts');
-        }
-        
-        return false;
-      }
-      
-      // Начинаем попытки инициализации
-      setTimeout(initializeChatPosition, 500); // Первая попытка через 500мс
+      // Повторные попытки с задержками
+      setTimeout(() => window.findAndPositionChat(), 500);
+      setTimeout(() => window.findAndPositionChat(), 1000);
+      setTimeout(() => window.findAndPositionChat(), 2000);
+      setTimeout(() => window.findAndPositionChat(), 3000);
       
       // Обновляем при изменении размера окна
       window.addEventListener('resize', function() {
-        setTimeout(updateCartPanel, 100);
+        setTimeout(() => {
+          updateCartPanel();
+          window.findAndPositionChat(); // Перепозиционируем чат
+        }, 100);
       });
       
       // Обновляем при кликах по ссылкам добавления в корзину
       document.addEventListener('click', function(e) {
         const target = e.target.closest('a[href*="/cart/add/"], a[href*="/add-to-cart/"]');
         if (target) {
-          setTimeout(updateCartPanel, 1000);
+          setTimeout(() => {
+            updateCartPanel();
+            window.findAndPositionChat(); // Перепозиционируем чат
+          }, 1000);
         }
       });
       
@@ -296,87 +315,59 @@
       document.addEventListener('submit', function(e) {
         const form = e.target;
         if (form.action && (form.action.includes('/cart/add/') || form.action.includes('/add-to-cart/'))) {
-          setTimeout(updateCartPanel, 1000);
+          setTimeout(() => {
+            updateCartPanel();
+            window.findAndPositionChat(); // Перепозиционируем чат
+          }, 1000);
         }
       });
       
       // Периодическое обновление (каждые 30 секунд)
       setInterval(updateCartPanel, 30000);
       
-      // Периодическая проверка позиции чата (часто в первые 10 секунд)
-      let chatCheckCount = 0;
-      const chatCheckInterval = setInterval(function() {
-        chatCheckCount++;
-        const supportTrigger = document.getElementById('supportTrigger');
-        if (supportTrigger && !supportTrigger.hasAttribute('data-cart-positioned')) {
-          console.log('Periodic chat check #' + chatCheckCount + ' - positioning chat');
-          supportTrigger.setAttribute('data-cart-positioned', 'true');
-          const panelVisible = cartPanel && cartPanel.style.display === 'flex';
-          if (typeof updateChatPosition === 'function') {
-            updateChatPosition(panelVisible);
-            console.log('TalkMe chat positioned via periodic check:', panelVisible ? '116px' : '40px');
+      // Простая периодическая проверка чата (первые 5 секунд)
+      let chatFoundCount = 0;
+      const chatCheckInterval = setInterval(() => {
+        if (window.findAndPositionChat()) {
+          chatFoundCount++;
+          // Прекращаем поиск после 2 успешных позиционирований
+          if (chatFoundCount >= 2) {
+            clearInterval(chatCheckInterval);
+            console.log('Chat positioning checks completed successfully');
           }
         }
-        
-        // Прекращаем частые проверки через 10 секунд
-        if (chatCheckCount >= 20) { // 20 раз по 500мс = 10 секунд
-          clearInterval(chatCheckInterval);
-          console.log('Stopped periodic chat positioning checks');
-        }
-      }, 500); // Каждые 500мс
+      }, 1000); // Каждую секунду
+      
+      // Стоп проверок через 5 секунд
+      setTimeout(() => {
+        clearInterval(chatCheckInterval);
+        console.log('Chat positioning checks timeout - stopped');
+      }, 5000);
     }
     
-    // Наблюдатель за появлением чата TalkMe
+    // Наблюдатель за появлением чата TalkMe (упрощённый)
     const chatObserver = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.type === 'childList') {
-          // Проверяем каждый добавленный узел
-          mutation.addedNodes.forEach(function(node) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              // Проверяем сам элемент и его потомков
-              const supportTrigger = node.id === 'supportTrigger' ? node : node.querySelector('#supportTrigger');
-              if (supportTrigger && !supportTrigger.hasAttribute('data-cart-positioned')) {
-                supportTrigger.setAttribute('data-cart-positioned', 'true');
-                const panelVisible = cartPanel && cartPanel.style.display === 'flex';
-                if (typeof updateChatPosition === 'function') {
-                  updateChatPosition(panelVisible);
-                  console.log('TalkMe chat detected via MutationObserver and positioned:', panelVisible ? '116px' : '40px');
-                }
-              }
-            }
-          });
-          
-          // Также проверяем обычным способом (на случай пропуска)
-          const supportTrigger = document.getElementById('supportTrigger');
-          if (supportTrigger && !supportTrigger.hasAttribute('data-cart-positioned')) {
-            supportTrigger.setAttribute('data-cart-positioned', 'true');
-            const panelVisible = cartPanel && cartPanel.style.display === 'flex';
-            if (typeof updateChatPosition === 'function') {
-              updateChatPosition(panelVisible);
-              console.log('TalkMe chat detected via fallback check and positioned:', panelVisible ? '116px' : '40px');
-            }
-          }
-        }
-      });
+      // Просто вызываем нашу функцию поиска
+      if (window.findAndPositionChat()) {
+        console.log('TalkMe chat detected via MutationObserver');
+      }
     });
     
     // Начинаем наблюдение за изменениями в DOM
     chatObserver.observe(document.body, { childList: true, subtree: true });
     
-    // Дополнительная проверка при полной загрузке окна
+    // Финальные проверки при полной загрузке
     window.addEventListener('load', function() {
-      setTimeout(function() {
-        const supportTrigger = document.getElementById('supportTrigger');
-        if (supportTrigger && !supportTrigger.hasAttribute('data-cart-positioned')) {
-          console.log('Final chat positioning attempt on window load');
-          supportTrigger.setAttribute('data-cart-positioned', 'true');
-          const panelVisible = cartPanel && cartPanel.style.display === 'flex';
-          if (typeof updateChatPosition === 'function') {
-            updateChatPosition(panelVisible);
-            console.log('TalkMe chat positioned on window load:', panelVisible ? '116px' : '40px');
-          }
-        }
-      }, 1000); // Ожидаем 1 секунду после полной загрузки
+      setTimeout(() => {
+        window.findAndPositionChat();
+        console.log('Final chat positioning attempt on window load');
+      }, 1000);
+      
+      // Ещё одна попытка через 3 секунды
+      setTimeout(() => {
+        window.findAndPositionChat();
+        console.log('Last resort chat positioning attempt');
+      }, 3000);
     });
     
     console.log('Mobile cart panel with AJAX updates and enhanced chat positioning loaded');
