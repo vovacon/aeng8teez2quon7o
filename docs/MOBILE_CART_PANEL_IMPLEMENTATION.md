@@ -232,5 +232,30 @@ function updateChatPosition(showPanel) {
 4. **Улучшенные обработчики**: Позиционирование при resize, cart events, form submissions
 5. **Упрощённый MutationObserver**: Просто вызывает `findAndPositionChat()`
 
+### Дополнительное исправление: Z-index проблема
+
+**Проблема**: При прокрутке страницы #supportTrigger исчезает за другими элементами.
+
+**Причина**: Недостаточный z-index для чата.
+
+**Решение**: Добавлен z-index: 10001 для обеспечения отображения поверх всех элементов.
+
+```javascript
+// Обновлённые CSS правила
+chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {
+  bottom: ${bottomValue} !important; 
+  right: 24px !important;
+  z-index: 10001 !important;
+  position: fixed !important;
+}`;
+
+// Прямое обновление стилей
+supportTrigger.style.zIndex = '10001';
+supportTrigger.style.position = 'fixed';
+```
+
 ### Результат
-✅ **Проблема решена**: Иконка чата #supportTrigger теперь корректно позиционируется как при начальной загрузке страницы, так и при изменении состояния панели корзины.
+✅ **Проблема решена**: Иконка чата #supportTrigger теперь:
+- Корректно позиционируется при начальной загрузке страницы
+- Остаётся видимой при прокрутке страницы
+- Правильно смещается при появлении/скрытии панели корзины
