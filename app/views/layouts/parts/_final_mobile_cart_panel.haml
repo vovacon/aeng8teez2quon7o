@@ -1,27 +1,16 @@
 -# encoding: utf-8
--# Финальная версия мобильной панели корзины
-- if !session[:cart].nil? && !session[:cart].empty?
-  - total_items = session[:cart].sum { |item| item["quantity"].to_i }
-  - total_sum = 0
-  - session[:cart].each do |item|
-    - product = Product.find_by_id(item["id"])
-    - if product
-      - complect = Complect.find_by_title(item["type"]) || Complect.find_by_title("standard")
-      - complect_id = complect ? complect.id : 1
-      - product_complect = ProductComplect.where(product_id: product.id, complect_id: complect_id).first
-      - if product_complect
-        - total_sum += product_complect.price * item["quantity"].to_i
-  
-  .mobile-cart-panel#mobile-cart-panel
+-# Финальная версия мобильной панели корзины (JavaScript-based для работы с кэшированием)
+
+.mobile-cart-panel#mobile-cart-panel{style: "display: none;"}
     .mobile-cart-panel__content
       .mobile-cart-panel__items-count
-        %span.mobile-cart-panel__count-badge#cart-count-badge= total_items
+        %span.mobile-cart-panel__count-badge#cart-count-badge 0
       
       %a.mobile-cart-panel__cart-button{ href: "/cart" }
         Перейти в корзину
       
       .mobile-cart-panel__total-price
-        %span.mobile-cart-panel__price#cart-total-price= "#{total_sum.round} ₽"
+        %span.mobile-cart-panel__price#cart-total-price 0 ₽
   
   -# Дополнительный блок для заполнения области под панелью на iPhone
   .mobile-cart-panel-filler#cart-panel-filler
