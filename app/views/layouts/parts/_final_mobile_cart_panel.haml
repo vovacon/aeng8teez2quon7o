@@ -166,7 +166,12 @@
     }
     
     const bottomValue = showPanel ? '116px' : '40px'; // 76px панель + 40px отступ = 116px
-    chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {bottom: ${bottomValue} !important; right: 24px !important;}`;
+    chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {
+      bottom: ${bottomValue} !important; 
+      right: 24px !important;
+      z-index: 10001 !important;
+      position: fixed !important;
+    }`;
     
     console.log('Chat position updated:', bottomValue);
     
@@ -174,7 +179,9 @@
     const supportTrigger = document.getElementById('supportTrigger');
     if (supportTrigger) {
       supportTrigger.style.bottom = bottomValue + ' !important';
-      console.log('Chat trigger element directly updated:', bottomValue);
+      supportTrigger.style.zIndex = '10001';
+      supportTrigger.style.position = 'fixed';
+      console.log('Chat trigger element directly updated:', bottomValue, 'with z-index: 10001');
     }
   };
   
