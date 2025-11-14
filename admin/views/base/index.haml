@@ -17,14 +17,24 @@
           = current_account.role || 'unknown'
         
     - begin
-      -if can_manage_permissions?
-        .alert.alert-info
+      - permissions_check = can_manage_permissions?
+      .alert.alert-success{style: "margin: 10px 0;"}
+        %strong Debug:
+        current_account: #{current_account&.id}, role: #{current_account&.role}, can_manage: #{permissions_check}
+      -if permissions_check
+        .alert.alert-info{id: "permissions-block", style: "margin: 10px 0;"}
           %strong Управление правами:
           =link_to "Настроить права доступа", url(:permissions, :index), :class => "btn btn-info btn-small", :style => "margin-left: 10px;"
+      - else
+        .alert.alert-warning{style: "margin: 10px 0;"}
+          %strong Info:
+          Нет прав на управление правами (нужна роль admin)
     - rescue => e
-      .alert.alert-warning
-        %strong Ошибка:
-        Не удалось проверить права доступа
+      .alert.alert-danger{style: "margin: 10px 0;"}
+        %strong Exception:
+        = e.message
+        %br
+        = e.backtrace&.first
         
     %h3 Доступные разделы:
     .available-modules
@@ -137,3 +147,63 @@
     font-size: 12px;
     margin: 5px 0;
   }
+  
+  /* Debug styles */
+  .alert {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+  }
+
+:javascript
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Admin page loaded');
+    
+    var permissionsBlock = document.getElementById('permissions-block');
+    if (permissionsBlock) {
+      console.log('Permissions block found:', permissionsBlock);
+      
+      // Следим за изменениями
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'attributes') {
+            console.log('Permissions block attribute changed:', mutation.attributeName, permissionsBlock.style.display);
+          }
+          if (mutation.type === 'childList') {
+            console.log('Permissions block children changed');
+          }
+        });
+      });
+      
+      observer.observe(permissionsBlock, {
+        attributes: true,
+        childList: true,
+        subtree: true
+      });
+      
+      // Проверяем каждую секунду
+      var checkInterval = setInterval(function() {
+        if (!document.getElementById('permissions-block')) {
+          console.log('Permissions block disappeared!');
+          clearInterval(checkInterval);
+        } else {
+          console.log('Permissions block still visible');
+        }
+      }, 1000);
+      
+      // Останавливаем проверку через 10 секунд
+      setTimeout(function() {
+        clearInterval(checkInterval);
+        console.log('Stopped monitoring permissions block');
+      }, 10000);
+    } else {
+      console.log('Permissions block NOT found');
+    }
+    
+    // Проверяем все alert блоки
+    var alerts = document.querySelectorAll('.alert');
+    console.log('Found alerts:', alerts.length);
+    alerts.forEach(function(alert, index) {
+      console.log('Alert', index, ':', alert.className, alert.textContent.substring(0, 50));
+    });
+  });
