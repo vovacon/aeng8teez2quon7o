@@ -5,14 +5,26 @@
   -if current_account
     %p
       %strong Пользователь: 
-      =current_account.display_name
-      %span.label{:class => role_class(current_account.role)}
-        =current_account.role
+      - begin
+        = current_account.display_name
+      - rescue => e
+        = current_account.email || "Пользователь #{current_account.id}"
+      - begin
+        %span.label{:class => role_class(current_account.role)}
+          =current_account.role
+      - rescue => e
+        %span.label.label-default
+          = current_account.role || 'unknown'
         
-    -if can_manage_permissions?
-      .alert.alert-info
-        %strong Управление правами:
-        =link_to "Настроить права доступа", url(:permissions, :index), :class => "btn btn-info btn-small", :style => "margin-left: 10px;"
+    - begin
+      -if can_manage_permissions?
+        .alert.alert-info
+          %strong Управление правами:
+          =link_to "Настроить права доступа", url(:permissions, :index), :class => "btn btn-info btn-small", :style => "margin-left: 10px;"
+    - rescue => e
+      .alert.alert-warning
+        %strong Ошибка:
+        Не удалось проверить права доступа
         
     %h3 Доступные разделы:
     .available-modules

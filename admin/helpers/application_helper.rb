@@ -25,8 +25,13 @@ module Rozario
       
       # Проверка прав на управление правами
       def can_manage_permissions?
-        return false unless current_account
-        current_account.role == 'admin'
+        begin
+          return false unless current_account
+          return false unless current_account.respond_to?(:role)
+          current_account.role.to_s == 'admin'
+        rescue => e
+          false
+        end
       end
       
       # Получить список доступных модулей для меню
