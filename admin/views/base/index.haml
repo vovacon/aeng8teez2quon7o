@@ -22,15 +22,15 @@
             -if index % 4 == 0
               .row
             .span3
-              .module-card
-                %h4=humanize_module_name(mod)
-                .module-icon
-                  - icon_path = "app/views/icons/#{mod}.svg"
-                  - if File.exist?(icon_path)
-                    = File.read(icon_path).html_safe
-                  - else
-                    %p.module-code=mod
-                =link_to "Перейти", "/admin/#{mod}", :class => "btn btn-primary btn-small"
+              =link_to "/admin/#{mod}", :class => "module-card-link" do
+                .module-card
+                  %h4=humanize_module_name(mod)
+                  .module-icon
+                    - icon_path = "app/views/icons/#{mod}.svg"
+                    - if File.exist?(icon_path)
+                      = File.read(icon_path).html_safe
+                    - else
+                      %p.module-code=mod
       -else
         .alert.alert-warning У вас нет доступа ни к одному разделу. Обратитесь к администратору.
 
@@ -68,6 +68,15 @@
     =link_to "Способы оплаты", url(:payment_methods, :index)
 
 :css
+  .module-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .module-card-link:hover {
+    text-decoration: none;
+    color: inherit;
+  }
   .module-card {
     border: 1px solid #ddd;
     padding: 15px;
@@ -75,10 +84,22 @@
     border-radius: 4px;
     background: #f9f9f9;
     text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .module-card:hover {
+    background: #e9e9e9;
+    border-color: #bbb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
   .module-card h4 {
     margin: 0 0 10px 0;
     color: #333;
+    transition: color 0.2s ease;
+  }
+  .module-card:hover h4 {
+    color: #000;
   }
   .available-modules .row {
     margin-bottom: 10px;
@@ -92,7 +113,12 @@
   .module-icon svg {
     width: 48px;
     height: 48px;
-    fill: #000000;
+    stroke: #000000;
+    transition: all 0.2s ease;
+  }
+  .module-card:hover .module-icon svg {
+    stroke: #0066cc;
+    transform: scale(1.1);
   }
   .module-code {
     color: #999;
