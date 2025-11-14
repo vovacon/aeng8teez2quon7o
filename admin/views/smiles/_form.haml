@@ -127,7 +127,7 @@
         =f.check_box :published, :checked => bit_field_to_bool(@smile.published), :class => 'switch-input'
         %span.switch-slider.round
         %span.switch-label Опубликовано
-    -# Debug: value=#{@smile.published.inspect}, type=#{@smile.published.class.to_s}, bit_result=#{bit_field_to_bool(@smile.published).to_s}
+
     %span.help-inline=error ? f.error_message_on(:published, :class => 'text-error') : 'Переключите, чтобы опубликовать смайл'
 
 =partial 'seo/seo_fields', locals: { f: f, data: @smile, h1: false, is_smile_page: true }

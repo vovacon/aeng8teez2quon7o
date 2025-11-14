@@ -61,7 +61,7 @@
         =f.check_box :published, :checked => bit_field_to_bool(@comment.published), :class => 'switch-input'
         %span.switch-slider.round
         %span.switch-label Опубликовано
-    -# Debug: value=#{@comment.published.inspect}, type=#{@comment.published.class.to_s}, bit_result=#{bit_field_to_bool(@comment.published).to_s}
+
     %span.help-inline=error ? f.error_message_on(:published, :class => 'text-error') : 'Переключите, чтобы опубликовать комментарий'
 
 .form-actions

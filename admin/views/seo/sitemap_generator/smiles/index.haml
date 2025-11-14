@@ -7,7 +7,7 @@
     e.stopImmediatePropagation();
     var chk = $(this)
     var t;
-    console.log($(this).prop('checked'))
+
     $(this).prop('checked') ? t = "Разрешить" : t = 'Запретить'
     	if (confirm(t + " поисковикам индексировать страницу?")) {
       $.ajax({
@@ -26,6 +26,6 @@
         }
       });
     	} else {
-        console.log('false')
+
     	}
   });

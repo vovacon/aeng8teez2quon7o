@@ -148,7 +148,7 @@
       element.getElementsByClassName('remove-field')[0].addEventListener('click', function() { removeField(this) });
       element.getElementsByClassName('move-up-field')[0].addEventListener('click', function() { moveUpField(this) });
       element.getElementsByClassName('move-down-field')[0].addEventListener('click', function() { moveDownField(this) });
-      console.log('1')
+
       fieldsContainer.appendChild(element);
     }
 
@@ -173,14 +173,14 @@
       let array = [];
       for (const [key, value] of formData.entries()) { array.push(value); }
       data = { table: table, methods: array }
-      console.log(data)
+
       fetch('/admin/payment_methods/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       }).then(response => response.json()).then(data => {
         alert('Данные успешно сохранены!')
-        // console.log(data)
+
       }).catch((error) => {
         alert('Ошибка! Данные НЕ СОХРАНЕНЫ!')
         console.error('Ошибка отправки формы:', error);

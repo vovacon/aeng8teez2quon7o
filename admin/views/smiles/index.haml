@@ -54,7 +54,7 @@
         -   else published_value.to_i == 1
         - # На вкладке "Неопубликованные" отображать все обычным шрифтом
         - show_as_bold = !is_published && @filter_type != 'unpublished'
-        - # DEBUG: smile #{smile.id}: published=#{published_value.inspect} (#{published_value.class}), is_published=#{is_published}, show_as_bold=#{show_as_bold}
+
         - row_class = (!is_published && @filter_type != 'unpublished') ? 'list-row unpublished-smile' : 'list-row'
         %tr{class: row_class}
           %td.list-column.list-selectable
