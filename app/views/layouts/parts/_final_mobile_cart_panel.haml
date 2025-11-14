@@ -2,18 +2,18 @@
 -# Финальная версия мобильной панели корзины (JavaScript-based для работы с кэшированием)
 
 .mobile-cart-panel#mobile-cart-panel{style: "display: none;"}
-    .mobile-cart-panel__content
-      .mobile-cart-panel__items-count
-        %span.mobile-cart-panel__count-badge#cart-count-badge 0
-      
-      %a.mobile-cart-panel__cart-button{ href: "/cart" }
-        Перейти в корзину
-      
-      .mobile-cart-panel__total-price
-        %span.mobile-cart-panel__price#cart-total-price 0 ₽
-  
-  -# Дополнительный блок для заполнения области под панелью на iPhone
-  .mobile-cart-panel-filler#cart-panel-filler
+  .mobile-cart-panel__content
+    .mobile-cart-panel__items-count
+      %span.mobile-cart-panel__count-badge#cart-count-badge 0
+    
+    %a.mobile-cart-panel__cart-button{ href: "/cart" }
+      Перейти в корзину
+    
+    .mobile-cart-panel__total-price
+      %span.mobile-cart-panel__price#cart-total-price 0 ₽
+
+-# Дополнительный блок для заполнения области под панелью на iPhone
+.mobile-cart-panel-filler#cart-panel-filler
 
 :css
   .mobile-cart-panel {
