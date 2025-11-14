@@ -166,11 +166,19 @@
     }
     
     const bottomValue = showPanel ? '116px' : '40px'; // 76px панель + 40px отступ = 116px
-    chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger {
+    chatStyle.textContent = `.online-chat-root-TalkMe #supportTrigger, #supportTrigger {
       bottom: ${bottomValue} !important; 
       right: 24px !important;
       z-index: 10001 !important;
       position: fixed !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    .online-chat-root-TalkMe #supportTrigger.hidden, #supportTrigger.hidden {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     }`;
     
     console.log('Chat position updated:', bottomValue);
@@ -181,6 +189,18 @@
       supportTrigger.style.bottom = bottomValue + ' !important';
       supportTrigger.style.zIndex = '10001';
       supportTrigger.style.position = 'fixed';
+      
+      // Борьба с вендорным классом hidden
+      if (supportTrigger.classList.contains('hidden')) {
+        supportTrigger.classList.remove('hidden');
+        console.log('Removed vendor hidden class from chat');
+      }
+      
+      // Принудительное отображение
+      supportTrigger.style.display = 'block';
+      supportTrigger.style.visibility = 'visible';
+      supportTrigger.style.opacity = '1';
+      
       console.log('Chat trigger element directly updated:', bottomValue, 'with z-index: 10001');
     }
   };
@@ -332,6 +352,18 @@
       // Периодическое обновление (каждые 30 секунд)
       setInterval(updateCartPanel, 30000);
       
+      // Периодическая борьба с вендорным классом hidden (каждые 5 секунд)
+      setInterval(function() {
+        const supportTrigger = document.getElementById('supportTrigger');
+        if (supportTrigger && supportTrigger.classList.contains('hidden')) {
+          supportTrigger.classList.remove('hidden');
+          console.log('Removed vendor hidden class from chat (periodic check)');
+          
+          // Перепозиционируем чат
+          window.findAndPositionChat();
+        }
+      }, 5000);
+      
       // Простая периодическая проверка чата (первые 5 секунд)
       let chatFoundCount = 0;
       const chatCheckInterval = setInterval(() => {
@@ -352,13 +384,40 @@
       }, 5000);
     }
     
-    // Наблюдатель за появлением чата TalkMe (упрощённый)
+    // Наблюдатель за появлением чата TalkMe
     const chatObserver = new MutationObserver(function(mutations) {
-      // Просто вызываем нашу функцию поиска
       if (window.findAndPositionChat()) {
         console.log('TalkMe chat detected via MutationObserver');
+        
+        // Настраиваем отслеживание классов для нового элемента чата
+        const supportTrigger = document.getElementById('supportTrigger');
+        if (supportTrigger && !supportTrigger.hasAttribute('data-class-observer-set')) {
+          supportTrigger.setAttribute('data-class-observer-set', 'true');
+          chatClassObserver.observe(supportTrigger, { attributes: true, attributeFilter: ['class'] });
+          console.log('Class observer set for new chat element');
+        }
       }
     });
+    
+    // Отдельный наблюдатель для отслеживания изменений классов чата
+    const chatClassObserver = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const supportTrigger = mutation.target;
+          if (supportTrigger.id === 'supportTrigger' && supportTrigger.classList.contains('hidden')) {
+            supportTrigger.classList.remove('hidden');
+            console.log('Vendor added hidden class - removed immediately');
+            window.findAndPositionChat();
+          }
+        }
+      });
+    });
+    
+    // Начинаем отслеживание изменений классов у чата (если он уже есть)
+    const supportTrigger = document.getElementById('supportTrigger');
+    if (supportTrigger) {
+      chatClassObserver.observe(supportTrigger, { attributes: true, attributeFilter: ['class'] });
+    }
     
     // Начинаем наблюдение за изменениями в DOM
     chatObserver.observe(document.body, { childList: true, subtree: true });
