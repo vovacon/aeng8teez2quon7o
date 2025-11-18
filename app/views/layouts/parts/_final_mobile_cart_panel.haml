@@ -261,44 +261,25 @@
           // console.log('[CART PANEL] Updated total price:', Math.round(data.total_s));
         }
         
-        // Показываем/скрываем панель в зависимости от наличия товаров
+        // Простая логика: если есть товары - показываем панель
         const hasItems = (data.total_q || 0) > 0;
-        const hasValue = (data.total_s || 0) > 0;
-        
-        // Защита от некорректных данных
-        if (data.total_q === undefined || data.total_s === undefined) {
-          console.warn('[CART PANEL] Incomplete data received:', data);
-          return; // Не обновляем панель при неполных данных
-        }
         const currentPath = window.location.pathname;
         const currentUrl = window.location.href;
         const isCartPage = currentPath.startsWith('/cart') || currentUrl.includes('/cart');
         
-        // Более мягкая логика: показываем панель если есть товары, даже если сумма временно 0
-        // Это может происходить при загрузке или проблемах с расчетом цен
-        const shouldConsiderEmpty = !hasItems;
-        const finalHasItems = hasItems; // Убираем строгую проверку hasValue
+        // Упрощенная логика: только проверяем количество товаров
+        const shouldShowPanel = hasItems;
         
-        // Временная отладочная информация для диагностики проблемы
-        console.log('[CART PANEL DEBUG] Panel behavior:', {
-          hasItems: hasItems,
-          hasValue: hasValue,
-          shouldConsiderEmpty: shouldConsiderEmpty,
-          finalHasItems: finalHasItems,
-          currentPath: currentPath,
-          isCartPage: isCartPage,
-          screenWidth: window.innerWidth,
-          shouldShow: finalHasItems && !isCartPage && window.innerWidth < 1024,
-          rawData: data,
-          total_s_type: typeof data.total_s,
-          total_q_type: typeof data.total_q
-        });
+        // Минимальное логирование - только если есть проблемы
+        if (data.total_q > 0) {
+          console.log('[CART PANEL] Items in cart:', data.total_q, 'Will show panel:', shouldShowPanel && !isCartPage && window.innerWidth < 1024);
+        }
         
 
 
         if (cartPanel) {
-          if (finalHasItems && !isCartPage && window.innerWidth < 1024) {
-            console.log('[CART PANEL DEBUG] Showing cart panel with items:', data.total_q, 'value:', data.total_s);
+          if (shouldShowPanel && !isCartPage && window.innerWidth < 1024) {
+            // console.log('[CART PANEL] Showing panel - Items:', data.total_q);
             
             // Очищаем все принудительные скрытия
             cartPanel.style.display = 'flex';
@@ -316,27 +297,21 @@
             window.updateChatPosition(true);
           } else {
             let reason = 'unknown';
-            if (!finalHasItems) {
-              if (!hasItems) reason = 'no items in cart';
-              else reason = 'items present but finalHasItems is false';
+            if (!shouldShowPanel) {
+              reason = 'no items in cart';
             } else if (isCartPage) {
               reason = 'on cart page';
             } else if (window.innerWidth >= 1024) {
               reason = 'desktop screen';
             }
-            console.log('[CART PANEL DEBUG] Hiding cart panel - Reason:', reason, 'Data:', data);
+            // console.log('[CART PANEL] Hiding panel - Reason:', reason);
             
             // Принудительное скрытие панели
             cartPanel.style.display = 'none';
             cartPanel.style.visibility = 'hidden';
             cartPanel.classList.add('cart-panel-hidden');
             
-            // Убираем дополнительную логику скрытия при нулевой сумме
-            // if (!hasValue && hasItems) {
-            //   console.log('[CART PANEL] Zero value detected - applying additional hiding methods');
-            //   cartPanel.style.opacity = '0';
-            //   cartPanel.style.transform = 'translateY(100%)';
-            // }
+            // Простое скрытие без дополнительных эффектов
             
             if (isCartPage) cartPanel.setAttribute('data-cart-page', 'true');
             document.body.style.paddingBottom = '0';
@@ -364,15 +339,7 @@
       // Начальное обновление
       updateCartPanel();
       
-      // Принудительный тест панели (for debugging)
-      setTimeout(() => {
-        // console.log('[CART PANEL] Force showing panel for 3 seconds (debug test)');
-        cartPanel.style.display = 'flex';
-        setTimeout(() => {
-          // console.log('[CART PANEL] Hiding debug panel');
-          cartPanel.style.display = 'none';
-        }, 3000);
-      }, 2000);
+      // Убран принудительный тест для стабильности
       
       // Простая и надёжная инициализация позиции чата
       // Пробуем найти чат немедленно
@@ -384,22 +351,21 @@
       setTimeout(() => window.findAndPositionChat(), 2000);
       setTimeout(() => window.findAndPositionChat(), 3000);
       
-      // Обновляем при изменении размера окна
+      // Обновляем при изменении размера окна - с дебаунсом
+      let resizeTimeout;
       window.addEventListener('resize', function() {
-        setTimeout(() => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
           updateCartPanel();
-          window.findAndPositionChat(); // Перепозиционируем чат
-        }, 100);
+          window.findAndPositionChat();
+        }, 300); // Дебаунс для избежания частых обновлений
       });
       
-      // Обновляем при кликах по ссылкам добавления в корзину
+      // Обновляем при кликах по ссылкам добавления в корзину - только одно обновление
       document.addEventListener('click', function(e) {
         const target = e.target.closest('a[href*="/cart/add/"], a[href*="/add-to-cart/"]');
         if (target) {
-          setTimeout(() => {
-            updateCartPanel();
-            window.findAndPositionChat(); // Перепозиционируем чат
-          }, 1000);
+          setTimeout(updateCartPanel, 1500); // Увеличиваем задержку для стабильности
         }
       });
       
@@ -407,15 +373,12 @@
       document.addEventListener('submit', function(e) {
         const form = e.target;
         if (form.action && (form.action.includes('/cart/add/') || form.action.includes('/add-to-cart/'))) {
-          setTimeout(() => {
-            updateCartPanel();
-            window.findAndPositionChat(); // Перепозиционируем чат
-          }, 1000);
+          setTimeout(updateCartPanel, 1500);
         }
       });
       
-      // Периодическое обновление (каждые 30 секунд)
-      setInterval(updateCartPanel, 30000);
+      // Увеличиваем интервал для стабильности (каждые 2 минуты)
+      setInterval(updateCartPanel, 120000);
       
       // Периодическая борьба с вендорным классом hidden (каждые 5 секунд)
       setInterval(function() {

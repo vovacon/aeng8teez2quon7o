@@ -54,7 +54,7 @@ Rozario::App.helpers do
       session[:cart].each do |item|
         product = Product.find_by_id(item["id"])
         if product.nil?
-          puts "WARNING: Product with id #{item['id']} not found in cart total calculation"
+          # puts "WARNING: Product with id #{item['id']} not found in cart total calculation"
           next
         end
         
@@ -64,7 +64,7 @@ Rozario::App.helpers do
           )
           total += price * item["quantity"].to_i
         rescue => e
-          puts "ERROR: Failed to calculate price for product #{product.id}: #{e.message}"
+          # puts "ERROR: Failed to calculate price for product #{product.id}: #{e.message}"
           # Продолжаем расчет с другими товарами
         end
       end
