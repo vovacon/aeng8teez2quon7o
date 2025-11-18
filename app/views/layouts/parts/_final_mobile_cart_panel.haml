@@ -179,7 +179,7 @@
       opacity: 1 !important;
     }`;
     
-    console.log('Chat position updated:', bottomValue);
+    // console.log('Chat position updated:', bottomValue);
     
     // Дополнительно проверяем сам элемент
     const supportTrigger = document.getElementById('supportTrigger');
@@ -191,7 +191,7 @@
       // Борьба с вендорным классом hidden
       if (supportTrigger.classList.contains('hidden')) {
         supportTrigger.classList.remove('hidden');
-        console.log('Removed vendor hidden class from chat');
+        // console.log('Removed vendor hidden class from chat');
       }
       
       // Принудительное отображение
@@ -199,7 +199,7 @@
       supportTrigger.style.visibility = 'visible';
       supportTrigger.style.opacity = '1';
       
-      console.log('Chat trigger element directly updated:', bottomValue, 'with z-index: 10001');
+      // console.log('Chat trigger element directly updated:', bottomValue, 'with z-index: 10001');
     }
   };
   
@@ -220,7 +220,7 @@
         supportTrigger.setAttribute('data-cart-positioned', 'true');
       }
       
-      console.log('Chat found and positioned:', shouldPositionChat ? '116px' : '40px', 'Mobile:', isMobile, 'Panel visible:', panelVisible);
+      // console.log('Chat found and positioned:', shouldPositionChat ? '116px' : '40px', 'Mobile:', isMobile, 'Panel visible:', panelVisible);
       return true;
     }
     
@@ -233,7 +233,7 @@
     
     // Функция обновления панели через AJAX
     function updateCartPanel() {
-      console.log('[CART PANEL] Starting updateCartPanel...');
+      // console.log('[CART PANEL] Starting updateCartPanel...');
       fetch('/cart/stat?_=' + Date.now(), {
         method: 'GET',
         headers: {
@@ -244,21 +244,21 @@
         }
       })
       .then(response => {
-        console.log('[CART PANEL] Response status:', response.status);
+        // console.log('[CART PANEL] Response status:', response.status);
         return response.json();
       })
       .then(data => {
-        console.log('[CART PANEL] Received data:', data);
+        // console.log('[CART PANEL] Received data:', data);
         const countBadge = document.getElementById('cart-count-badge');
         const totalPrice = document.getElementById('cart-total-price');
         
         if (countBadge && data.total_q !== undefined) {
           countBadge.textContent = data.total_q;
-          console.log('[CART PANEL] Updated count badge:', data.total_q);
+          // console.log('[CART PANEL] Updated count badge:', data.total_q);
         }
         if (totalPrice && data.total_s !== undefined) {
           totalPrice.textContent = Math.round(data.total_s) + ' ₽';
-          console.log('[CART PANEL] Updated total price:', Math.round(data.total_s));
+          // console.log('[CART PANEL] Updated total price:', Math.round(data.total_s));
         }
         
         // Показываем/скрываем панель в зависимости от наличия товаров
@@ -273,24 +273,24 @@
         const finalHasItems = hasItems && hasValue;
         
         // Отладочная информация
-        console.log('[CART PANEL] Debug info:', {
-          hasItems: hasItems,
-          hasValue: hasValue,
-          shouldConsiderEmpty: shouldConsiderEmpty,
-          finalHasItems: finalHasItems,
-          currentPath: currentPath,
-          currentUrl: currentUrl,
-          isCartPage: isCartPage,
-          screenWidth: window.innerWidth,
-          shouldShow: finalHasItems && !isCartPage && window.innerWidth < 1024,
-          data: data
-        });
+        // console.log('[CART PANEL] Debug info:', {
+        //   hasItems: hasItems,
+        //   hasValue: hasValue,
+        //   shouldConsiderEmpty: shouldConsiderEmpty,
+        //   finalHasItems: finalHasItems,
+        //   currentPath: currentPath,
+        //   currentUrl: currentUrl,
+        //   isCartPage: isCartPage,
+        //   screenWidth: window.innerWidth,
+        //   shouldShow: finalHasItems && !isCartPage && window.innerWidth < 1024,
+        //   data: data
+        // });
         
 
 
         if (cartPanel) {
           if (finalHasItems && !isCartPage && window.innerWidth < 1024) {
-            console.log('[CART PANEL] Showing cart panel');
+            // console.log('[CART PANEL] Showing cart panel');
             
             // Очищаем все принудительные скрытия
             cartPanel.style.display = 'flex';
@@ -317,7 +317,7 @@
             } else if (window.innerWidth >= 1024) {
               reason = 'desktop screen';
             }
-            console.log('[CART PANEL] Hiding cart panel - Reason:', reason);
+            // console.log('[CART PANEL] Hiding cart panel - Reason:', reason);
             
             // Принудительное скрытие панели
             cartPanel.style.display = 'none';
@@ -326,7 +326,7 @@
             
             // Дополнительное скрытие через CSS класс
             if (!hasValue && hasItems) {
-              console.log('[CART PANEL] Zero value detected - applying additional hiding methods');
+              // console.log('[CART PANEL] Zero value detected - applying additional hiding methods');
               cartPanel.style.opacity = '0';
               cartPanel.style.transform = 'translateY(100%)';
             }
@@ -343,26 +343,26 @@
             window.updateChatPosition(false);
           }
         } else {
-          console.log('[CART PANEL] Cart panel element not found!');
+          // console.log('[CART PANEL] Cart panel element not found!');
         }
       })
       .catch(error => {
-        console.error('[CART PANEL] Update failed:', error);
+        // console.error('[CART PANEL] Update failed:', error);
       });
     }
     
     if (cartPanel) {
-      console.log('[CART PANEL] Cart panel element found, starting initialization...');
+      // console.log('[CART PANEL] Cart panel element found, starting initialization...');
       
       // Начальное обновление
       updateCartPanel();
       
       // Принудительный тест панели (for debugging)
       setTimeout(() => {
-        console.log('[CART PANEL] Force showing panel for 3 seconds (debug test)');
+        // console.log('[CART PANEL] Force showing panel for 3 seconds (debug test)');
         cartPanel.style.display = 'flex';
         setTimeout(() => {
-          console.log('[CART PANEL] Hiding debug panel');
+          // console.log('[CART PANEL] Hiding debug panel');
           cartPanel.style.display = 'none';
         }, 3000);
       }, 2000);
@@ -415,7 +415,7 @@
         const supportTrigger = document.getElementById('supportTrigger');
         if (supportTrigger && supportTrigger.classList.contains('hidden')) {
           supportTrigger.classList.remove('hidden');
-          console.log('Removed vendor hidden class from chat (periodic check)');
+          // console.log('Removed vendor hidden class from chat (periodic check)');
           
           // Перепозиционируем чат
           window.findAndPositionChat();
@@ -430,7 +430,7 @@
           // Прекращаем поиск после 2 успешных позиционирований
           if (chatFoundCount >= 2) {
             clearInterval(chatCheckInterval);
-            console.log('Chat positioning checks completed successfully');
+            // console.log('Chat positioning checks completed successfully');
           }
         }
       }, 1000); // Каждую секунду
@@ -438,21 +438,21 @@
       // Стоп проверок через 5 секунд
       setTimeout(() => {
         clearInterval(chatCheckInterval);
-        console.log('Chat positioning checks timeout - stopped');
+        // console.log('Chat positioning checks timeout - stopped');
       }, 5000);
     }
     
     // Наблюдатель за появлением чата TalkMe
     const chatObserver = new MutationObserver(function(mutations) {
       if (window.findAndPositionChat()) {
-        console.log('TalkMe chat detected via MutationObserver');
+        // console.log('TalkMe chat detected via MutationObserver');
         
         // Настраиваем отслеживание классов для нового элемента чата
         const supportTrigger = document.getElementById('supportTrigger');
         if (supportTrigger && !supportTrigger.hasAttribute('data-class-observer-set')) {
           supportTrigger.setAttribute('data-class-observer-set', 'true');
           chatClassObserver.observe(supportTrigger, { attributes: true, attributeFilter: ['class'] });
-          console.log('Class observer set for new chat element');
+          // console.log('Class observer set for new chat element');
         }
       }
     });
@@ -464,7 +464,7 @@
           const supportTrigger = mutation.target;
           if (supportTrigger.id === 'supportTrigger' && supportTrigger.classList.contains('hidden')) {
             supportTrigger.classList.remove('hidden');
-            console.log('Vendor added hidden class - removed immediately');
+            // console.log('Vendor added hidden class - removed immediately');
             window.findAndPositionChat();
           }
         }
@@ -484,15 +484,15 @@
     window.addEventListener('load', function() {
       setTimeout(() => {
         window.findAndPositionChat();
-        console.log('Final chat positioning attempt on window load');
+        // console.log('Final chat positioning attempt on window load');
       }, 1000);
       
       // Ещё одна попытка через 3 секунды
       setTimeout(() => {
         window.findAndPositionChat();
-        console.log('Last resort chat positioning attempt');
+        // console.log('Last resort chat positioning attempt');
       }, 3000);
     });
     
-    console.log('Mobile cart panel with AJAX updates and enhanced chat positioning loaded');
+    // console.log('Mobile cart panel with AJAX updates and enhanced chat positioning loaded');
   });

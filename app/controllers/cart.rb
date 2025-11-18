@@ -8,8 +8,8 @@ Rozario::App.controllers :cart do
   end
 
   get :index do
-    puts "get :index do cart.rb"
-    puts request.session[:mdata]
+    # puts "get :index do cart.rb"
+    # puts request.session[:mdata]
     @key = 0
     if request.session[:mdata].nil? 
       current_date = Date.current
@@ -28,18 +28,18 @@ Rozario::App.controllers :cart do
       ProductComplect.check(value)
     end
     if defined? cookies[:overcookie]
-      puts 'cookie yes!!'
-      puts 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK', session[:mdata], 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK'
+      # puts 'cookie yes!!'
+      # puts 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK', session[:mdata], 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK'
       @user_name = cookies[:overcookie].to_s
-      puts @user_name
+      # puts @user_name
     else
-      puts 'session yes!!'
-      puts 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK', session[:mdata], 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK'
+      # puts 'session yes!!'
+      # puts 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK', session[:mdata], 'CCCCCCCCCCOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOKKKKKKKKKKK'
       @user_name = session[:mdata].to_s
-      puts @user_name
+      # puts @user_name
     end
-    puts 'hey'
-    puts request.session[:mdata]
+    # puts 'hey'
+    # puts request.session[:mdata]
     session[:cart] = session[:cart].nil? ? nil : session[:cart].reject { |x| !Product.find(x['id']).check_availability(@subdomain_pool) }
 
     @cart = session[:cart]
@@ -55,7 +55,7 @@ Rozario::App.controllers :cart do
   end
 
   get :show do
-    puts "get :show cart.rb"
+    # puts "get :show cart.rb"
     @cart = session[:cart]
     #@cross_cats = @subdomain && @subdomain.enable_categories ? Category.where(id: @subdomain.category_ids.to_s.split(','), :show_in_crosssell => true) : Category.where(:show_in_crosssell => true)
     tmp =  Categorygroup.where(id: @subdomain_pool.crosssel_categorygroup_id).pluck(:id)
@@ -67,12 +67,12 @@ Rozario::App.controllers :cart do
   end
 
   get :newcart do
-    puts "get :newcart cart.rb"
+    # puts "get :newcart cart.rb"
     render 'cart/newcart'
   end
 
   get :stat do
-    puts "get :stat cart.rb"
+    # puts "get :stat cart.rb"
     # Предотвращаем кэширование данных корзины
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response['Pragma'] = 'no-cache'
@@ -89,7 +89,7 @@ Rozario::App.controllers :cart do
   end
 
   get :add, :map => '/cart/add/:id' do
-    puts "get :add, :map => /cart/add/:id cart.rb"
+    # puts "get :add, :map => /cart/add/:id cart.rb"
     type = params[:type].present? ? params[:type] : "standard"
     curr_item = { "id" => params[:id], "quantity" => params[:quantity], "type" => type }
     if session[:cart].nil?
@@ -114,7 +114,7 @@ Rozario::App.controllers :cart do
   end
 
   get :add, :map => '/add-to-cart/:id' do
-    puts "get :add, :map => /add-to-cart/:id cart.rb"
+    # puts "get :add, :map => /add-to-cart/:id cart.rb"
     type = params[:type].present? ? params[:type] : "standard"
     curr_item = { "id" => params[:id], "quantity" => params[:quantity], "type" => type }
     if session[:cart].nil?
@@ -141,24 +141,24 @@ Rozario::App.controllers :cart do
   end
 
   get :del, :with => :id do
-    puts "get :del, :with => :id cart.rb"
+    # puts "get :del, :with => :id cart.rb"
     type = params[:type].present? ? params[:type] : "standard"
     session[:cart].delete_if {|item| item["id"] == params[:id] && (item["type"].blank? || item["type"] == type)}
     redirect back
   end
 
   get :clear do
-    puts "get :clear cart.rb"
+    # puts "get :clear cart.rb"
     session[:cart] = nil
     redirect back
   end
 
   get :refresh do
-    puts "get :refresh cart.rb"
+    # puts "get :refresh cart.rb"
   end
 
   get :precheckout do
-    puts "get :precheckout cart.rb"
+    # puts "get :precheckout cart.rb"
     if current_account
       render "cart/skipauth", :layout => false
     else
@@ -174,7 +174,7 @@ Rozario::App.controllers :cart do
   end
 
   get :checkout do
-    puts "get :checkout cart.rb"
+    # puts "get :checkout cart.rb"
     @user_account = UserAccount.new
     @cart = session[:cart]
     if @cart.blank?
@@ -193,7 +193,7 @@ Rozario::App.controllers :cart do
   end
 
   get :checkouts do
-    puts "get :checkouts cart.rb"
+    # puts "get :checkouts cart.rb"
     @cart = session[:cart]
     if @cart.blank?
       redirect 'cart'
@@ -204,7 +204,7 @@ Rozario::App.controllers :cart do
   end
 
   get :payment do
-    puts "get :payment cart.rb"
+    # puts "get :payment cart.rb"
     if session[:odata]
       odata = JSON.parse(session[:odata])
       @total_summ = odata["cart_summ"].to_s
@@ -220,7 +220,7 @@ Rozario::App.controllers :cart do
   end
 
   get :payments do
-    puts "get :payments cart.rb"
+    # puts "get :payments cart.rb"
     @payment = true
     if session[:odata]
       odata = JSON.parse(session[:odata])
@@ -237,7 +237,7 @@ Rozario::App.controllers :cart do
   end
 
   get '/paYH' do 
-    puts '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', session, params, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    # puts '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', session, params, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     x = Random.new_seed.to_s
     key = x[0..3].to_s + '-' + x[6..9].to_s + '-' + x[11..14].to_s
     time_now = Time.now.getlocal("+03:00")
@@ -247,12 +247,12 @@ Rozario::App.controllers :cart do
   end
 
   get :thanks do
-    puts "get :thanks cart.rb"
+    # puts "get :thanks cart.rb"
     render 'cart/thanks', :layout => false
   end
 
   post :getorder, :csrf_protection => false do
-    puts "post :getorder, :csrf_protection => false cart.rb"
+    # puts "post :getorder, :csrf_protection => false cart.rb"
     session[:odata] = params[:data].to_json
     status 200
   end
@@ -687,13 +687,13 @@ Rozario::App.controllers :cart do
   # end
 
   get 'form-profile' do
-    puts "get form-profile do cart.rb"
+    # puts "get form-profile do cart.rb"
     @cart = session[:cart]
     render 'cart/form-profile', :layout => false
   end
 
   get 'form' do
-    puts "get form do cart.rb"
+    # puts "get form do cart.rb"
     render 'cart/form', :layout => false
   end
 
@@ -761,7 +761,7 @@ Rozario::App.controllers :cart do
       subject 'Оплата заказа ' + id
       body 'Заказ ' + id + ' оплачен ' +  date + '. Cумма ' + sum + ' ' + currency
     end     
-    puts 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS', params.to_s, 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS'
+    # puts 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS', params.to_s, 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS'
     return 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS', params.to_s, 'PAAAAAAAAAARAAAAAAAAAAAAAAMMMMMMMSSSSSSSS'
   end
   

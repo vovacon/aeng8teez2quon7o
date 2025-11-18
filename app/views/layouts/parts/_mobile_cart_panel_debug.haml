@@ -139,9 +139,9 @@
       });
     }
     
-    console.log('Mobile cart panel debug loaded');
-    console.log('Screen width:', window.innerWidth);
-    console.log('Cart panel element:', document.getElementById('mobile-cart-panel'));
+    // console.log('Mobile cart panel debug loaded');
+    // console.log('Screen width:', window.innerWidth);
+    // console.log('Cart panel element:', document.getElementById('mobile-cart-panel'));
     
     // Принудительно показываем панель на мобильных для тестирования
     const panel = document.getElementById('mobile-cart-panel');
@@ -153,6 +153,6 @@
       panel.style.right = '0';
       panel.style.zIndex = '9999';
       document.body.classList.add('has-mobile-cart-panel');
-      console.log('Panel forced to show on mobile');
+      // console.log('Panel forced to show on mobile');
     }
   });
