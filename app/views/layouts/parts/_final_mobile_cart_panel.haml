@@ -264,33 +264,41 @@
         // Показываем/скрываем панель в зависимости от наличия товаров
         const hasItems = (data.total_q || 0) > 0;
         const hasValue = (data.total_s || 0) > 0;
+        
+        // Защита от некорректных данных
+        if (data.total_q === undefined || data.total_s === undefined) {
+          console.warn('[CART PANEL] Incomplete data received:', data);
+          return; // Не обновляем панель при неполных данных
+        }
         const currentPath = window.location.pathname;
         const currentUrl = window.location.href;
         const isCartPage = currentPath.startsWith('/cart') || currentUrl.includes('/cart');
         
-        // Дополнительная проверка: если сумма нулевая, считаем что товаров нет
-        const shouldConsiderEmpty = !hasItems || !hasValue;
-        const finalHasItems = hasItems && hasValue;
+        // Более мягкая логика: показываем панель если есть товары, даже если сумма временно 0
+        // Это может происходить при загрузке или проблемах с расчетом цен
+        const shouldConsiderEmpty = !hasItems;
+        const finalHasItems = hasItems; // Убираем строгую проверку hasValue
         
-        // Отладочная информация
-        // console.log('[CART PANEL] Debug info:', {
-        //   hasItems: hasItems,
-        //   hasValue: hasValue,
-        //   shouldConsiderEmpty: shouldConsiderEmpty,
-        //   finalHasItems: finalHasItems,
-        //   currentPath: currentPath,
-        //   currentUrl: currentUrl,
-        //   isCartPage: isCartPage,
-        //   screenWidth: window.innerWidth,
-        //   shouldShow: finalHasItems && !isCartPage && window.innerWidth < 1024,
-        //   data: data
-        // });
+        // Временная отладочная информация для диагностики проблемы
+        console.log('[CART PANEL DEBUG] Panel behavior:', {
+          hasItems: hasItems,
+          hasValue: hasValue,
+          shouldConsiderEmpty: shouldConsiderEmpty,
+          finalHasItems: finalHasItems,
+          currentPath: currentPath,
+          isCartPage: isCartPage,
+          screenWidth: window.innerWidth,
+          shouldShow: finalHasItems && !isCartPage && window.innerWidth < 1024,
+          rawData: data,
+          total_s_type: typeof data.total_s,
+          total_q_type: typeof data.total_q
+        });
         
 
 
         if (cartPanel) {
           if (finalHasItems && !isCartPage && window.innerWidth < 1024) {
-            // console.log('[CART PANEL] Showing cart panel');
+            console.log('[CART PANEL DEBUG] Showing cart panel with items:', data.total_q, 'value:', data.total_s);
             
             // Очищаем все принудительные скрытия
             cartPanel.style.display = 'flex';
@@ -310,26 +318,25 @@
             let reason = 'unknown';
             if (!finalHasItems) {
               if (!hasItems) reason = 'no items in cart';
-              else if (!hasValue) reason = 'cart total is zero';
-              else reason = 'items but no value';
+              else reason = 'items present but finalHasItems is false';
             } else if (isCartPage) {
               reason = 'on cart page';
             } else if (window.innerWidth >= 1024) {
               reason = 'desktop screen';
             }
-            // console.log('[CART PANEL] Hiding cart panel - Reason:', reason);
+            console.log('[CART PANEL DEBUG] Hiding cart panel - Reason:', reason, 'Data:', data);
             
             // Принудительное скрытие панели
             cartPanel.style.display = 'none';
             cartPanel.style.visibility = 'hidden';
             cartPanel.classList.add('cart-panel-hidden');
             
-            // Дополнительное скрытие через CSS класс
-            if (!hasValue && hasItems) {
-              // console.log('[CART PANEL] Zero value detected - applying additional hiding methods');
-              cartPanel.style.opacity = '0';
-              cartPanel.style.transform = 'translateY(100%)';
-            }
+            // Убираем дополнительную логику скрытия при нулевой сумме
+            // if (!hasValue && hasItems) {
+            //   console.log('[CART PANEL] Zero value detected - applying additional hiding methods');
+            //   cartPanel.style.opacity = '0';
+            //   cartPanel.style.transform = 'translateY(100%)';
+            // }
             
             if (isCartPage) cartPanel.setAttribute('data-cart-page', 'true');
             document.body.style.paddingBottom = '0';

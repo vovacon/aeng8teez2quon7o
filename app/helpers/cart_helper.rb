@@ -53,9 +53,20 @@ Rozario::App.helpers do
     unless session[:cart].nil?
       session[:cart].each do |item|
         product = Product.find_by_id(item["id"])
-        total += product.get_local_complect_price(
-            item, @subdomain, @subdomain_pool, product.categories.first
-        ) * item["quantity"].to_i
+        if product.nil?
+          puts "WARNING: Product with id #{item['id']} not found in cart total calculation"
+          next
+        end
+        
+        begin
+          price = product.get_local_complect_price(
+              item, @subdomain, @subdomain_pool, product.categories.first
+          )
+          total += price * item["quantity"].to_i
+        rescue => e
+          puts "ERROR: Failed to calculate price for product #{product.id}: #{e.message}"
+          # Продолжаем расчет с другими товарами
+        end
       end
     end
     total.round(2)
