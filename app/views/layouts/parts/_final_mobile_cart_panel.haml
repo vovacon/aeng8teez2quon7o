@@ -233,7 +233,7 @@
     
     // Функция обновления панели через AJAX
     function updateCartPanel() {
-      console.log('[CART PANEL DEBUG] === Starting updateCartPanel ===', new Date().toLocaleTimeString());
+      // console.log('[CART PANEL DEBUG] === Starting updateCartPanel ===', new Date().toLocaleTimeString());
       fetch('/cart/stat?_=' + Date.now(), {
         method: 'GET',
         headers: {
@@ -244,21 +244,21 @@
         }
       })
       .then(response => {
-        console.log('[CART PANEL DEBUG] Response status:', response.status);
+        // console.log('[CART PANEL DEBUG] Response status:', response.status);
         return response.json();
       })
       .then(data => {
-        console.log('[CART PANEL DEBUG] Received data:', data);
+        // console.log('[CART PANEL DEBUG] Received data:', data);
         const countBadge = document.getElementById('cart-count-badge');
         const totalPrice = document.getElementById('cart-total-price');
         
         if (countBadge && data.total_q !== undefined) {
           countBadge.textContent = data.total_q;
-          console.log('[CART PANEL DEBUG] Updated count badge:', data.total_q);
+          // console.log('[CART PANEL DEBUG] Updated count badge:', data.total_q);
         }
         if (totalPrice && data.total_s !== undefined) {
           totalPrice.textContent = Math.round(data.total_s) + ' ₽';
-          console.log('[CART PANEL DEBUG] Updated total price:', Math.round(data.total_s));
+          // console.log('[CART PANEL DEBUG] Updated total price:', Math.round(data.total_s));
         }
         
         // Простая логика: если есть товары - показываем панель
@@ -270,29 +270,14 @@
         // Упрощенная логика: только проверяем количество товаров
         const shouldShowPanel = hasItems;
         
-        // Полное диагностическое логирование
-        console.log('[CART PANEL DEBUG] Analysis:', {
-          'Total items (total_q)': data.total_q,
-          'Total sum (total_s)': data.total_s,
-          'hasItems': hasItems,
-          'shouldShowPanel': shouldShowPanel,
-          'currentPath': currentPath,
-          'currentUrl': currentUrl,
-          'isCartPage': isCartPage,
-          'screenWidth': window.innerWidth,
-          'isMobile': window.innerWidth < 1024,
-          'finalDecision': shouldShowPanel && !isCartPage && window.innerWidth < 1024,
-          'panelElement': !!cartPanel,
-          'panelCurrentDisplay': cartPanel ? cartPanel.style.display : 'no element',
-          'timestamp': new Date().toLocaleTimeString()
-        });
+        // Логирование отключено
+        // console.log('[CART PANEL DEBUG] Analysis:', data.total_q, shouldShowPanel);
         
 
 
         if (cartPanel) {
           if (shouldShowPanel && !isCartPage && window.innerWidth < 1024) {
-            console.log('[CART PANEL DEBUG] ✅ SHOWING PANEL - Items:', data.total_q, 'Sum:', data.total_s);
-            console.log('[CART PANEL DEBUG] Panel display before show:', cartPanel.style.display);
+            // console.log('[CART PANEL DEBUG] SHOWING PANEL - Items:', data.total_q);
             
             // Очищаем все принудительные скрытия
             cartPanel.style.display = 'flex';
@@ -317,8 +302,7 @@
             } else if (window.innerWidth >= 1024) {
               reason = 'desktop screen';
             }
-            console.log('[CART PANEL DEBUG] ❌ HIDING PANEL - Reason:', reason);
-            console.log('[CART PANEL DEBUG] Panel display before hide:', cartPanel.style.display);
+            // console.log('[CART PANEL DEBUG] HIDING PANEL - Reason:', reason);
             
             // Принудительное скрытие панели
             cartPanel.style.display = 'none';
@@ -339,16 +323,16 @@
             window.updateChatPosition(false);
           }
         } else {
-          console.log('[CART PANEL DEBUG] ⚠️ Cart panel element not found! #mobile-cart-panel');
+          // console.log('[CART PANEL DEBUG] Cart panel element not found!');
         }
       })
       .catch(error => {
-        console.error('[CART PANEL DEBUG] 🚨 Update failed:', error);
+        // console.error('[CART PANEL DEBUG] Update failed:', error);
       });
     }
     
     if (cartPanel) {
-      console.log('[CART PANEL DEBUG] 🚀 Cart panel element found, starting initialization...');
+      // console.log('[CART PANEL DEBUG] Cart panel element found, starting initialization...');
       
       // Начальное обновление
       updateCartPanel();
@@ -370,7 +354,7 @@
       window.addEventListener('resize', function() {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-          console.log('[CART PANEL DEBUG] 📏 Window resized, updating panel. New width:', window.innerWidth);
+          // console.log('[CART PANEL DEBUG] Window resized');
           updateCartPanel();
           window.findAndPositionChat();
         }, 300); // Дебаунс
@@ -380,11 +364,8 @@
       document.addEventListener('click', function(e) {
         const target = e.target.closest('a[href*="/cart/add/"], a[href*="/add-to-cart/"]');
         if (target) {
-          console.log('[CART PANEL DEBUG] 💰 Cart add clicked, will update in 1.5s:', target.href);
-          setTimeout(() => {
-            console.log('[CART PANEL DEBUG] 🔄 Executing delayed update after cart add');
-            updateCartPanel();
-          }, 1500);
+          // console.log('[CART PANEL DEBUG] Cart add clicked');
+          setTimeout(updateCartPanel, 1500);
         }
       });
       
@@ -392,19 +373,13 @@
       document.addEventListener('submit', function(e) {
         const form = e.target;
         if (form.action && (form.action.includes('/cart/add/') || form.action.includes('/add-to-cart/'))) {
-          console.log('[CART PANEL DEBUG] 📝 Cart form submitted:', form.action);
-          setTimeout(() => {
-            console.log('[CART PANEL DEBUG] 🔄 Executing delayed update after form submit');
-            updateCartPanel();
-          }, 1500);
+          // console.log('[CART PANEL DEBUG] Cart form submitted');
+          setTimeout(updateCartPanel, 1500);
         }
       });
       
       // Периодическое обновление (каждые 2 минуты)
-      setInterval(() => {
-        console.log('[CART PANEL DEBUG] ⏰ Periodic update triggered');
-        updateCartPanel();
-      }, 120000);
+      setInterval(updateCartPanel, 120000);
       
       // Периодическая борьба с вендорным классом hidden (каждые 5 секунд)
       setInterval(function() {
@@ -490,10 +465,5 @@
       }, 3000);
     });
     
-    console.log('[CART PANEL DEBUG] 📎 Mobile cart panel loaded and initialized', {
-      'Panel element exists': !!cartPanel,
-      'Screen width': window.innerWidth,
-      'Current path': window.location.pathname,
-      'Timestamp': new Date().toLocaleTimeString()
-    });
+    // console.log('[CART PANEL DEBUG] Mobile cart panel loaded and initialized');
   });

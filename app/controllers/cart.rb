@@ -86,7 +86,7 @@ Rozario::App.controllers :cart do
     end
     
     total_s = total
-    puts "[CART STAT DEBUG] total_q=#{total_q}, total_s=#{total_s}, cart_size=#{session[:cart]&.size || 0}, timestamp=#{Time.now.strftime('%H:%M:%S')}"
+    # puts "[CART STAT DEBUG] total_q=#{total_q}, total_s=#{total_s}, cart_size=#{session[:cart]&.size || 0}"
     
     content_type :json
     { :total_s => total_s, :total_q => total_q }.to_json

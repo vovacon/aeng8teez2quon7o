@@ -54,7 +54,7 @@ Rozario::App.helpers do
       session[:cart].each do |item|
         product = Product.find_by_id(item["id"])
         if product.nil?
-          puts "[CART HELPER DEBUG] WARNING: Product with id #{item['id']} not found in cart total calculation"
+          # puts "[CART HELPER DEBUG] WARNING: Product with id #{item['id']} not found"
           next
         end
         
@@ -63,9 +63,9 @@ Rozario::App.helpers do
               item, @subdomain, @subdomain_pool, product.categories.first
           )
           total += price * item["quantity"].to_i
-          puts "[CART HELPER DEBUG] Product #{product.id}: price=#{price}, qty=#{item['quantity']}, subtotal=#{price * item['quantity'].to_i}"
+          # puts "[CART HELPER DEBUG] Product #{product.id}: price=#{price}, qty=#{item['quantity']}"
         rescue => e
-          puts "[CART HELPER DEBUG] ERROR: Failed to calculate price for product #{product.id}: #{e.message}"
+          # puts "[CART HELPER DEBUG] ERROR: Failed to calculate price for product #{product.id}: #{e.message}"
           # Продолжаем расчет с другими товарами
         end
       end
